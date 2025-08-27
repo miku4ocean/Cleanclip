@@ -17,6 +17,7 @@ function CleanClipSidebar() {
   const [pdfExporter, setPdfExporter] = useState(null);
   const [pageUrl, setPageUrl] = useState('');
   const [pageTitle, setPageTitle] = useState('');
+  const [canRetry, setCanRetry] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -77,13 +78,16 @@ function CleanClipSidebar() {
       if (data.fallback) {
         setStatus('warning');
         setStatusMessage(data.message || `備援模式：已擷取 ${data.text.length} 個字符`);
+        setCanRetry(true);
       } else {
         setStatus('success');
         setStatusMessage(`已擷取 ${data.text.length} 個字符的內容`);
+        setCanRetry(false);
       }
     } else {
       setStatus('error');
       setStatusMessage('內容擷取失敗，請重試或手動複製文字');
+      setCanRetry(true);
     }
   };
 
@@ -226,6 +230,19 @@ function CleanClipSidebar() {
     }
   };
 
+  const handleRetryExtraction = () => {
+    setStatus('loading');
+    setStatusMessage('重新嘗試擷取內容...');
+    setCanRetry(false);
+    
+    // Send retry message to content script
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {
+        type: 'EXTRACT_CONTENT'
+      });
+    });
+  };
+
   const getStatusClass = () => {
     switch (status) {
       case 'loading': return 'status loading';
@@ -283,6 +300,20 @@ function CleanClipSidebar() {
         <div className={getStatusClass()}>
           {isProcessing && <div className="loading-spinner"></div>}
           {statusMessage}
+          {canRetry && !isProcessing && (
+            <button
+              className="btn btn-secondary"
+              onClick={handleRetryExtraction}
+              style={{
+                marginLeft: '8px',
+                padding: '4px 8px',
+                fontSize: '12px',
+                minWidth: 'auto'
+              }}
+            >
+              🔄 重試
+            </button>
+          )}
         </div>
 
         <div className="text-preview">

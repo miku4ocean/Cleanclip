@@ -1,4 +1,28 @@
 let isExtracting = false;
+let smartExtractor = null;
+
+// Initialize smart extractor when content script loads
+document.addEventListener('DOMContentLoaded', () => {
+  initializeSmartExtractor();
+});
+
+// Also initialize if DOM is already loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeSmartExtractor);
+} else {
+  initializeSmartExtractor();
+}
+
+function initializeSmartExtractor() {
+  try {
+    if (window.SmartExtractor) {
+      smartExtractor = new window.SmartExtractor();
+      console.log('SmartExtractor initialized');
+    }
+  } catch (error) {
+    console.error('Failed to initialize SmartExtractor:', error);
+  }
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'EXTRACT_CONTENT') {
@@ -11,59 +35,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-function extractContent() {
+async function extractContent() {
   isExtracting = true;
   
   try {
-    console.log('Starting content extraction...');
+    console.log('Starting smart content extraction...');
     console.log('Current URL:', window.location.href);
     
-    if (typeof Readability === 'undefined') {
-      throw new Error('Readability library not loaded');
+    let result;
+    
+    // Try smart extractor first
+    if (smartExtractor) {
+      console.log('Using SmartExtractor...');
+      result = await smartExtractor.extractContent();
+    } else {
+      // Fallback to original method
+      console.log('SmartExtractor not available, using fallback...');
+      result = await fallbackExtraction();
     }
 
-    // Site-specific handling
-    if (window.location.hostname.includes('cw.com.tw')) {
-      console.log('Detected CommonWealth Magazine - using fallback');
-      throw new Error('Using fallback for CW');
+    if (result.success && result.content) {
+      const extractedData = {
+        url: window.location.href,
+        title: result.content.title || document.title,
+        text: result.content.text,
+        timestamp: new Date().toISOString(),
+        method: result.method,
+        fallback: result.method !== 'strategy_1'
+      };
+
+      console.log('Content extracted successfully:', {
+        url: extractedData.url,
+        title: extractedData.title,
+        textLength: extractedData.text.length,
+        method: result.method
+      });
+
+      let statusMessage;
+      if (result.method === 'strategy_1') {
+        statusMessage = `已擷取 ${extractedData.text.length} 個字符的內容`;
+      } else {
+        statusMessage = `智慧模式：已擷取 ${extractedData.text.length} 個字符 (${result.method})`;
+      }
+
+      chrome.runtime.sendMessage({
+        type: 'CONTENT_EXTRACTED',
+        data: {
+          ...extractedData,
+          message: statusMessage
+        }
+      });
+    } else {
+      throw new Error('All extraction methods failed');
     }
-
-    const documentClone = document.cloneNode(true);
-    const reader = new Readability(documentClone);
-    const article = reader.parse();
-
-    if (!article || !article.textContent) {
-      throw new Error('No readable content found');
-    }
-
-    const extractedData = {
-      url: window.location.href,
-      title: article.title || document.title,
-      text: cleanText(article.textContent),
-      timestamp: new Date().toISOString()
-    };
-
-    console.log('Content extracted successfully:', {
-      url: extractedData.url,
-      title: extractedData.title,
-      textLength: extractedData.text.length
-    });
-
-    chrome.runtime.sendMessage({
-      type: 'CONTENT_EXTRACTED',
-      data: extractedData
-    });
 
   } catch (error) {
     console.error('Content extraction failed:', error);
     
+    // Final fallback
     const fallbackText = getFallbackContent();
     
-    let statusMessage = '使用備援模式擷取內容';
+    let statusMessage = '使用最終備援模式擷取內容';
     if (window.location.hostname.includes('cw.com.tw')) {
-      statusMessage = '天下雜誌需要手動複製內容';
+      statusMessage = '天下雜誌：嘗試多種方法後使用備援模式';
     } else if (window.location.hostname.includes('bnext.com.tw')) {
-      statusMessage = '數位時代可能需要登入會員';
+      statusMessage = '數位時代：可能需要等待內容載入或登入';
     }
     
     chrome.runtime.sendMessage({
@@ -80,6 +116,36 @@ function extractContent() {
   } finally {
     isExtracting = false;
   }
+}
+
+async function fallbackExtraction() {
+  return new Promise((resolve, reject) => {
+    try {
+      if (typeof Readability === 'undefined') {
+        throw new Error('Readability library not loaded');
+      }
+
+      const documentClone = document.cloneNode(true);
+      const reader = new Readability(documentClone);
+      const article = reader.parse();
+
+      if (!article || !article.textContent || article.textContent.length < 50) {
+        throw new Error('Readability extraction insufficient');
+      }
+
+      resolve({
+        success: true,
+        content: {
+          title: article.title || document.title,
+          text: cleanText(article.textContent),
+          length: article.textContent.length
+        },
+        method: 'readability_fallback'
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 function cleanText(text) {

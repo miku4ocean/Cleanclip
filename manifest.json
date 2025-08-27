@@ -25,6 +25,8 @@
       "matches": ["<all_urls>"],
       "js": [
         "lib/readability.js",
+        "lib/anti-crawl-bypass.js",
+        "lib/smart-extractor.js",
         "content-script.js"
       ],
       "css": ["sidebar.css"],
