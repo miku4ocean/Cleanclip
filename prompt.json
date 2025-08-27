@@ -1,0 +1,30 @@
+{
+  "project": "CleanClip - 純文字擷取外掛",
+  "description": "Chrome 擴充功能：擷取主文文字、自訂清理並儲存／摘要為 .txt 或 PDF。",
+  "tasks": [
+    {
+      "role": "frontend-developer",
+      "description": "側欄 UI 設計、段落預覽、操作按鈕、樣式實作",
+      "module": "FrontendSidebar",
+      "output": ["SidebarPanel.tsx", "TextPreview.tsx", "ExportButtons.tsx"]
+    },
+    {
+      "role": "backend-developer",
+      "description": "主文擷取腳本與與 Readability 實作，注入網頁並回傳文字",
+      "module": "ContentExtractor",
+      "output": ["content_script.js", "readability_adapter.js"]
+    },
+    {
+      "role": "backend-developer",
+      "description": "實作文字與摘要下載功能，包括 txt 與 PDF 匯出",
+      "module": "FileExport",
+      "output": ["text_export.ts", "pdf_export.ts"]
+    },
+    {
+      "role": "general-purpose",
+      "description": "整合 GPT API 生成摘要並處理錯誤回傳",
+      "module": "SummaryGenerator",
+      "output": ["gpt_summary.ts", "summary_worker.ts"]
+    }
+  ]
+}
