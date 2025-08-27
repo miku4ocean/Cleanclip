@@ -25,6 +25,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "lib/readability.js",
+        "lib/text-processor.js",
         "lib/anti-crawl-bypass.js",
         "lib/smart-extractor.js",
         "content-script.js"
