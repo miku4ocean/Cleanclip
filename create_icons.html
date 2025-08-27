@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CleanClip Icon Generator</title>
+</head>
+<body>
+    <h2>CleanClip Icon Generator</h2>
+    <p>Open browser console and run the script to generate icons</p>
+    
+    <script>
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Text icon (representing clean text)
+            ctx.fillStyle = 'white';
+            const lineHeight = Math.floor(size / 8);
+            const margin = Math.floor(size / 6);
+            
+            // Draw text lines
+            for (let i = 0; i < 4; i++) {
+                const y = margin + (i * lineHeight * 1.2);
+                const width = i === 3 ? size * 0.4 : size * 0.7;
+                ctx.fillRect(margin, y, width, lineHeight * 0.6);
+            }
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        function downloadIcon(size) {
+            const dataUrl = createIcon(size);
+            const link = document.createElement('a');
+            link.download = `icon${size}.png`;
+            link.href = dataUrl;
+            link.click();
+        }
+        
+        // Generate all required icons
+        console.log('Generating CleanClip icons...');
+        downloadIcon(16);
+        downloadIcon(32);  
+        downloadIcon(48);
+        downloadIcon(128);
+        console.log('Icons generated! Check your downloads folder.');
+    </script>
+</body>
+</html>
