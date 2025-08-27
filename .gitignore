@@ -1,0 +1,47 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment variables (if any)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Development notes
+notes.md
+dev-notes.md
+todo.md
+
+# Chrome extension store assets
+store-assets/
+screenshots/
+promo-materials/
+
+# Zip files for distribution
+*.zip
+cleanclip-*.zip
