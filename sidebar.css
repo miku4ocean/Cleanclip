@@ -118,6 +118,11 @@ body {
   color: #059669;
 }
 
+.status.warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
 .text-preview {
   flex: 1;
   margin-bottom: 16px;

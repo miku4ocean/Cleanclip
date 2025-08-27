@@ -73,11 +73,17 @@ function CleanClipSidebar() {
       setEditedText(data.text);
       setPageUrl(data.url || '');
       setPageTitle(data.title || '');
-      setStatus('success');
-      setStatusMessage(`已擷取 ${data.text.length} 個字符的內容`);
+      
+      if (data.fallback) {
+        setStatus('warning');
+        setStatusMessage(data.message || `備援模式：已擷取 ${data.text.length} 個字符`);
+      } else {
+        setStatus('success');
+        setStatusMessage(`已擷取 ${data.text.length} 個字符的內容`);
+      }
     } else {
       setStatus('error');
-      setStatusMessage('內容擷取失敗，請重試');
+      setStatusMessage('內容擷取失敗，請重試或手動複製文字');
     }
   };
 

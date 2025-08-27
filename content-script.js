@@ -16,9 +16,16 @@ function extractContent() {
   
   try {
     console.log('Starting content extraction...');
+    console.log('Current URL:', window.location.href);
     
     if (typeof Readability === 'undefined') {
       throw new Error('Readability library not loaded');
+    }
+
+    // Site-specific handling
+    if (window.location.hostname.includes('cw.com.tw')) {
+      console.log('Detected CommonWealth Magazine - using fallback');
+      throw new Error('Using fallback for CW');
     }
 
     const documentClone = document.cloneNode(true);
@@ -52,6 +59,13 @@ function extractContent() {
     
     const fallbackText = getFallbackContent();
     
+    let statusMessage = '使用備援模式擷取內容';
+    if (window.location.hostname.includes('cw.com.tw')) {
+      statusMessage = '天下雜誌需要手動複製內容';
+    } else if (window.location.hostname.includes('bnext.com.tw')) {
+      statusMessage = '數位時代可能需要登入會員';
+    }
+    
     chrome.runtime.sendMessage({
       type: 'CONTENT_EXTRACTED',
       data: {
@@ -59,7 +73,8 @@ function extractContent() {
         title: document.title,
         text: fallbackText,
         timestamp: new Date().toISOString(),
-        fallback: true
+        fallback: true,
+        message: statusMessage
       }
     });
   } finally {
@@ -89,9 +104,15 @@ function getFallbackContent() {
     '.post-content',
     '.article-content',
     '.entry-content',
+    '.story-body',
+    '.article-body',
+    '.news-content',
+    '.post-body',
     'main',
     '#main',
-    '#content'
+    '#content',
+    '.cna-content',
+    '.story-text'
   ];
 
   let content = '';

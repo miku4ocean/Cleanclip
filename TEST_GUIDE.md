@@ -148,9 +148,12 @@
 測試以下類型網站：
 
 **新聞媒體**
+- [ ] ✅ 中央社 (cna.com.tw) - 完全支援
 - [ ] 聯合新聞網 (udn.com)
 - [ ] 自由時報 (ltn.com.tw)
 - [ ] 中時新聞網 (chinatimes.com)
+- [ ] ⚠️ 天下雜誌 (cw.com.tw) - 需要備援模式
+- [ ] ⚠️ 數位時代 (bnext.com.tw) - 可能需要登入
 
 **部落格平台**
 - [ ] Medium.com
