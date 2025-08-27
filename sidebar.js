@@ -14,9 +14,13 @@ function CleanClipSidebar() {
   const [apiKey, setApiKey] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pdfExporter, setPdfExporter] = useState(null);
+  const [pageUrl, setPageUrl] = useState('');
+  const [pageTitle, setPageTitle] = useState('');
 
   useEffect(() => {
     loadSettings();
+    initializePDFExporter();
     
     const messageListener = (message) => {
       if (message.type === 'CONTENT_READY') {
@@ -30,6 +34,17 @@ function CleanClipSidebar() {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
   }, []);
+
+  const initializePDFExporter = async () => {
+    try {
+      if (window.PDFExporter) {
+        const exporter = new window.PDFExporter();
+        setPdfExporter(exporter);
+      }
+    } catch (error) {
+      console.error('Failed to initialize PDF exporter:', error);
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -56,6 +71,8 @@ function CleanClipSidebar() {
     if (data && data.text) {
       setExtractedText(data.text);
       setEditedText(data.text);
+      setPageUrl(data.url || '');
+      setPageTitle(data.title || '');
       setStatus('success');
       setStatusMessage(`已擷取 ${data.text.length} 個字符的內容`);
     } else {
@@ -165,6 +182,44 @@ function CleanClipSidebar() {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!editedText.trim()) {
+      setStatus('error');
+      setStatusMessage('沒有內容可以匯出為PDF');
+      return;
+    }
+
+    if (!pdfExporter) {
+      setStatus('error');
+      setStatusMessage('PDF 匯出功能尚未載入');
+      return;
+    }
+
+    setIsProcessing(true);
+    setStatus('loading');
+    setStatusMessage('正在產生PDF...');
+
+    try {
+      const options = {
+        title: pageTitle || '擷取內容',
+        url: pageUrl,
+        fontSize: 12,
+        lineHeight: 1.6
+      };
+
+      const result = await pdfExporter.downloadPDF(editedText, null, options);
+      
+      setStatus('success');
+      setStatusMessage(`PDF已產生：${result.pages} 頁`);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      setStatus('error');
+      setStatusMessage(`PDF匯出失敗: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getStatusClass = () => {
     switch (status) {
       case 'loading': return 'status loading';
@@ -260,6 +315,24 @@ function CleanClipSidebar() {
               </>
             ) : (
               '摘要文章'
+            )}
+          </button>
+        </div>
+
+        <div className="actions" style={{marginTop: '8px'}}>
+          <button
+            className="btn btn-success"
+            onClick={handleExportPDF}
+            disabled={!editedText.trim() || isProcessing}
+            style={{width: '100%'}}
+          >
+            {isProcessing ? (
+              <>
+                <div className="loading-spinner"></div>
+                PDF產生中...
+              </>
+            ) : (
+              '📄 匯出PDF'
             )}
           </button>
         </div>
