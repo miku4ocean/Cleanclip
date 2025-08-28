@@ -196,6 +196,12 @@ function performExtraction() {
                         return extractTwitterContent();
                     }
                     
+                    // 台灣新聞網站特殊處理
+                    if (url.includes('cw.com.tw') || url.includes('udn.com') || 
+                        url.includes('pixnet.net') || url.includes('thenewslens.com')) {
+                        return extractTaiwanNewsContent();
+                    }
+                    
                     // 一般網站擷取
                     return extractGeneralContent();
                 }
@@ -463,7 +469,8 @@ function performExtraction() {
                     if (hostname.includes('linkedin.com')) return 'linkedin';
                     if (hostname.includes('bnext.com') || hostname.includes('businessweekly.com') || 
                         hostname.includes('cw.com.tw') || hostname.includes('udn.com') ||
-                        hostname.includes('chinatimes.com') || hostname.includes('ltn.com.tw')) return 'taiwan_news';
+                        hostname.includes('chinatimes.com') || hostname.includes('ltn.com.tw') ||
+                        hostname.includes('pixnet.net') || hostname.includes('thenewslens.com')) return 'taiwan_news';
                     if (hostname.includes('techcrunch.com') || hostname.includes('theverge.com') || 
                         hostname.includes('wired.com')) return 'tech_news';
                     if (hostname.includes('reuters.com') || hostname.includes('bloomberg.com') ||
@@ -684,13 +691,13 @@ function performExtraction() {
                             
                             // 只在高確信度時才移除內容
                             // 廣告行檢測（只移除明確的廣告標示）
-                            if (isAdvertisementContent(line)) {
+                            if (isAdvertisementContent(line, null)) {
                                 console.log(`Removing ad line: "${line}"`);
                                 return false;
                             }
                             
                             // 圖片說明行檢測（只移除明確的圖片來源）
-                            if (isImageCaptionContent(line)) {
+                            if (isImageCaptionContent(line, null)) {
                                 console.log(`Removing caption line: "${line}"`);
                                 return false;
                             }
@@ -780,6 +787,150 @@ function performExtraction() {
                         content: finalContent,
                         selector: usedSelector,
                         debug: []
+                    };
+                }
+                
+                // 台灣新聞網站專門擷取策略
+                function extractTaiwanNewsContent() {
+                    console.log('🔍 Taiwan News content extraction started');
+                    
+                    const url = window.location.href;
+                    let selectors = [];
+                    let metadata = '';
+                    
+                    // 針對不同台灣網站使用不同選擇器
+                    if (url.includes('cw.com.tw')) {
+                        // 天下雜誌
+                        selectors = [
+                            '.article-content',
+                            '.article-body',
+                            '.content-wrapper .content',
+                            '.post-content',
+                            'main .article-content p',
+                            '[data-testid="article-content"]'
+                        ];
+                    } else if (url.includes('udn.com')) {
+                        // 聯合報
+                        selectors = [
+                            '.article-content',
+                            '.article-body', 
+                            '#story_body',
+                            '.story-body',
+                            '.article__content',
+                            '.article-content-container p',
+                            '.story_art_content p'
+                        ];
+                    } else if (url.includes('pixnet.net')) {
+                        // 痞客邦
+                        selectors = [
+                            '.article-content',
+                            '.article-body',
+                            '#article-content',
+                            '.content-area',
+                            '.entry-content',
+                            '.post-content',
+                            '.article-content-inner'
+                        ];
+                    } else if (url.includes('thenewslens.com')) {
+                        // 關鍵評論網
+                        selectors = [
+                            '.article-content',
+                            '.article-body',
+                            '.post-content',
+                            '.entry-content',
+                            'main .article-content',
+                            '[data-testid="article-content"]'
+                        ];
+                    }
+                    
+                    // 通用台灣新聞選擇器
+                    selectors = selectors.concat([
+                        'article .content',
+                        'main article p',
+                        '.content-inner',
+                        '.news-content',
+                        '.article-inner p'
+                    ]);
+                    
+                    let bestContent = '';
+                    let usedSelector = '';
+                    let allTexts = [];
+                    
+                    // 嘗試每個選擇器
+                    for (let selector of selectors) {
+                        try {
+                            const elements = document.querySelectorAll(selector);
+                            console.log(`Trying Taiwan news selector: ${selector}, found ${elements.length} elements`);
+                            
+                            if (elements.length > 0) {
+                                let combinedText = '';
+                                
+                                // 如果選擇器包含 'p'，表示是段落選擇器
+                                if (selector.includes('p')) {
+                                    // 段落模式：保持段落結構
+                                    const paragraphs = [];
+                                    elements.forEach(el => {
+                                        const text = el.innerText || el.textContent || '';
+                                        if (text.trim() && text.trim().length > 10) {
+                                            paragraphs.push(text.trim());
+                                        }
+                                    });
+                                    combinedText = paragraphs.join('\n\n');
+                                } else {
+                                    // 容器模式：從容器中提取段落
+                                    elements.forEach(container => {
+                                        const paragraphs = container.querySelectorAll('p, div, span');
+                                        const textParts = [];
+                                        
+                                        paragraphs.forEach(p => {
+                                            const text = p.innerText || p.textContent || '';
+                                            if (text.trim() && text.trim().length > 10) {
+                                                // 檢查是否為合法段落（不是廣告或雜訊）
+                                                if (!isAdvertisementContent(text.trim(), p) && 
+                                                    !isImageCaptionContent(text.trim(), p) && 
+                                                    !isSubscriptionContent(text.trim())) {
+                                                    textParts.push(text.trim());
+                                                }
+                                            }
+                                        });
+                                        
+                                        if (textParts.length > 0) {
+                                            combinedText += textParts.join('\n\n') + '\n\n';
+                                        }
+                                    });
+                                }
+                                
+                                // 清理內容但保持段落結構
+                                const cleanedText = combinedText
+                                    .trim()
+                                    .replace(/\n{4,}/g, '\n\n\n')  // 最多3個連續換行
+                                    .replace(/[ \t]{3,}/g, '  ');  // 最多2個空格
+                                
+                                console.log(`Taiwan news extraction from ${selector}: ${cleanedText.length} characters`);
+                                
+                                if (cleanedText.length > 200) {  // 降低門檻以捕獲更多內容
+                                    allTexts.push({
+                                        text: cleanedText,
+                                        length: cleanedText.length,
+                                        selector: selector
+                                    });
+                                    
+                                    if (cleanedText.length > bestContent.length) {
+                                        bestContent = cleanedText;
+                                        usedSelector = selector;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`Error with Taiwan news selector ${selector}:`, e);
+                        }
+                    }
+                    
+                    console.log(`Taiwan news extraction result: ${bestContent.length} characters using ${usedSelector}`);
+                    return {
+                        content: bestContent,
+                        selector: usedSelector,
+                        debug: allTexts.slice(0, 3)
                     };
                 }
                 
