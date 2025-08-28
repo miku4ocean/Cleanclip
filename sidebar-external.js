@@ -377,27 +377,28 @@ function performExtraction() {
                 function universalContentCleaning(element) {
                     const clonedElement = element.cloneNode(true);
                     
-                    // 1. CSS 選擇器過濾（適用所有網站）
+                    // 1. CSS 選擇器過濾（保守策略，只移除明確的非內容元素）
                     const universalUnwantedSelectors = [
-                        // 導航和結構
+                        // 導航和結構（安全移除）
                         'nav', 'header', 'footer', 'aside', '.sidebar', '.menu', '.navbar',
-                        // 廣告相關（通用）
-                        '.ad', '.ads', '.advertisement', '[class*="ad-"]', '[id*="ad-"]',
-                        '.sponsored', '.promo', '.banner', '.google-auto-placed', '.adsbygoogle',
-                        '[data-ad-client]', '[data-ad-slot]', '.adsystem', '.ad-container',
-                        // 訂閱相關（通用）
-                        '.newsletter', '.subscribe', '.subscription', '[class*="newsletter"]',
-                        '[class*="subscribe"]', '.email-signup', '.signup-form',
-                        // 社群分享（通用）
-                        '.social', '.share', '.sharing', '[class*="share"]', '[class*="social"]',
-                        // 圖片相關（通用）
-                        '.caption', '.photo-credit', '.image-source', 'figcaption',
-                        '.getty', '.reuters', '.ap-photo', '.photo-info', '.image-info',
-                        // 互動元素（通用）
-                        '.comments', '.comment', '.disqus', '.fb-comments', '.related',
-                        '.recommendation', '.more-stories', '.tags', '.categories',
-                        // 促銷內容（通用）
-                        '.cta', '.call-to-action', '.marketing', '.promotional',
+                        // 廣告相關（明確標識）
+                        '.advertisement', '.adsbygoogle', '.google-auto-placed',
+                        '[data-ad-client]', '[data-ad-slot]', '.adsystem', 
+                        '.ad-container', '.ad-wrapper', '.ad-banner', '.ad-block',
+                        // 訂閱相關（明確標識）
+                        '.newsletter-signup', '.subscription-box', '.email-signup', 
+                        '.signup-form', '.subscribe-form',
+                        // 社群分享（明確標識）
+                        '.social-share', '.share-buttons', '.social-buttons', '.sharing-tools',
+                        // 圖片相關（明確標識）
+                        '.photo-credit', '.image-source', '.image-caption',
+                        '.getty-embed', '.reuters-embed', '.ap-embed',
+                        // 互動元素（明確標識）
+                        '.comments-section', '.comment-form', '.disqus-thread', '.fb-comments-wrapper',
+                        // 推薦相關（明確標識）
+                        '.related-articles', '.recommended-articles', '.more-stories-section',
+                        // 促銷內容（明確標識）
+                        '.call-to-action', '.marketing-banner', '.promotional-content',
                         // 技術元素
                         'script', 'style', 'noscript', 'iframe'
                     ];
@@ -435,107 +436,136 @@ function performExtraction() {
                     return clonedElement;
                 }
                 
-                // 廣告內容檢測函數
+                // 廣告內容檢測函數（更保守的策略）
                 function isAdvertisementContent(text) {
-                    if (!text || text.length > 200) return false; // 長文不太可能是廣告
+                    if (!text || text.length > 100) return false; // 只檢測短文本
                     
-                    const adPatterns = [
-                        // 中文廣告模式
-                        /^\s*廣告\s*$/,
-                        /^\s*贊助內容\s*$/,
-                        /^\s*推廣\s*$/,
-                        // 英文廣告模式  
-                        /^\s*advertisement\s*$/i,
-                        /^\s*sponsored\s*$/i,
-                        /^\s*promoted\s*$/i,
-                        // 複合廣告模式
-                        /贊助.*內容/,
-                        /sponsored.*content/i,
-                        /廣告.*訊息/
+                    const textTrimmed = text.trim();
+                    
+                    // 只檢測明確的廣告標示（完全匹配）
+                    const exactAdMatches = [
+                        '廣告', 'Advertisement', 'ADVERTISEMENT', 'AD',
+                        '贊助內容', 'Sponsored Content', 'SPONSORED',
+                        '推廣內容', 'Promoted Content'
                     ];
                     
-                    return adPatterns.some(pattern => pattern.test(text.trim()));
+                    // 檢測完全匹配
+                    if (exactAdMatches.includes(textTrimmed)) return true;
+                    
+                    // 檢測明確的廣告模式（更嚴格）
+                    const strictAdPatterns = [
+                        /^廣告$/,
+                        /^贊助內容$/,
+                        /^sponsored$/i,
+                        /^advertisement$/i
+                    ];
+                    
+                    return strictAdPatterns.some(pattern => pattern.test(textTrimmed));
                 }
                 
-                // 圖片說明檢測函數  
+                // 圖片說明檢測函數（更精確的策略）
                 function isImageCaptionContent(text) {
-                    if (!text || text.length > 150) return false; // 長文不太可能是圖片說明
+                    if (!text || text.length > 80) return false; // 只檢測短文本圖片說明
                     
+                    const textTrimmed = text.trim();
+                    
+                    // 明確的圖片說明標示（精確匹配）
                     const captionPatterns = [
-                        // 中文圖片說明模式
-                        /圖片來源[:：]/,
-                        /照片來源[:：]/,
-                        /資料來源[:：]/,
-                        /圖[:：]/,
-                        /來源[:：].*getty/i,
-                        /來源[:：].*shutterstock/i,
-                        /來源[:：].*reuters/i,
-                        // 英文圖片說明模式
-                        /photo.*credit/i,
-                        /image.*source/i,
-                        /source[:：].*getty/i,
-                        /courtesy.*of/i,
-                        // 攝影師標註
-                        /攝影[:：]/,
-                        /photographer[:：]/i
+                        // 中文圖片說明模式（更精確）
+                        /^圖片來源[:：]/,
+                        /^照片來源[:：]/,
+                        /^資料來源[:：].*Getty/i,
+                        /^資料來源[:：].*Shutterstock/i,
+                        /^資料來源[:：].*Reuters/i,
+                        /^攝影[:：]/,
+                        // 英文圖片說明模式（更精確）
+                        /^Photo credit[:：]/i,
+                        /^Image source[:：]/i,
+                        /^Source[:：].*Getty/i,
+                        /^Source[:：].*Shutterstock/i,
+                        /^Courtesy of/i,
+                        /^Photographer[:：]/i
                     ];
                     
-                    return captionPatterns.some(pattern => pattern.test(text));
+                    // 完全匹配的圖片來源
+                    const exactCaptionMatches = [
+                        'Getty Images', 'Shutterstock', 'Reuters',
+                        '路透社', '美聯社', 'AP Photo'
+                    ];
+                    
+                    return captionPatterns.some(pattern => pattern.test(textTrimmed)) ||
+                           exactCaptionMatches.includes(textTrimmed);
                 }
                 
-                // 訂閱內容檢測函數
+                // 訂閱內容檢測函數（更保守的策略）
                 function isSubscriptionContent(text) {
-                    if (!text || text.length > 300) return false;
+                    if (!text || text.length > 150) return false; // 只檢測短文本
                     
+                    const textTrimmed = text.trim().toLowerCase();
+                    
+                    // 明確的訂閱標示（完全匹配或行首匹配）
                     const subscriptionPatterns = [
-                        // 訂閱提示
-                        /立即訂閱/,
-                        /免費訂閱/,
-                        /訂閱.*電子報/,
-                        /加入會員/,
-                        /subscribe.*now/i,
-                        /join.*newsletter/i,
-                        /sign.*up.*free/i,
-                        // Email 相關
-                        /gmail\.com/,
-                        /hotmail\.com/,
-                        /yahoo\.com/,
-                        /請.*輸入.*email/i,
-                        // 謝謝訊息
-                        /謝謝訂閱/,
-                        /thank.*you.*subscribing/i,
-                        // 會議活動廣告
-                        /高峰會.*解密/,
-                        /營收.*加速器/,
-                        /roi.*倍增/i
+                        // 訂閱相關（行首匹配，避免誤刪正文）
+                        /^立即訂閱/,
+                        /^免費訂閱/,
+                        /^訂閱電子報/,
+                        /^加入會員/,
+                        /^subscribe now/i,
+                        /^join our newsletter/i,
+                        /^sign up for free/i,
+                        // Email域名（獨立出現）
+                        /^gmail\.com$/,
+                        /^hotmail\.com$/,
+                        /^yahoo\.com$/,
+                        // 謝謝訊息（完整句子）
+                        /^謝謝訂閱/,
+                        /^thank you for subscribing/i
                     ];
                     
-                    return subscriptionPatterns.some(pattern => pattern.test(text));
+                    // 完全匹配的訂閱用語
+                    const exactSubscriptionMatches = [
+                        '立即訂閱', '免費訂閱', '訂閱電子報', '加入會員',
+                        'subscribe now', 'join newsletter', 'sign up',
+                        '謝謝訂閱', 'thank you for subscribing'
+                    ];
+                    
+                    return subscriptionPatterns.some(pattern => pattern.test(textTrimmed)) ||
+                           exactSubscriptionMatches.includes(textTrimmed);
                 }
                 
-                // 通用文字清理函數
+                // 通用文字清理函數（保守策略）
                 function universalTextCleaning(text) {
                     return text.trim()
                         .split('\n')
                         .map(line => line.trim())
                         .filter(line => {
-                            // 過濾太短的行
+                            // 只過濾太短的行（1個字符以下）
                             if (line.length < 2) return false;
                             
-                            // 過濾廣告行
-                            if (isAdvertisementContent(line)) return false;
+                            // 只在高確信度時才移除內容
+                            // 廣告行檢測（只移除明確的廣告標示）
+                            if (isAdvertisementContent(line)) {
+                                console.log(`Removing ad line: "${line}"`);
+                                return false;
+                            }
                             
-                            // 過濾圖片說明行
-                            if (isImageCaptionContent(line)) return false;
+                            // 圖片說明行檢測（只移除明確的圖片來源）
+                            if (isImageCaptionContent(line)) {
+                                console.log(`Removing caption line: "${line}"`);
+                                return false;
+                            }
                             
-                            // 過濾訂閱行
-                            if (isSubscriptionContent(line)) return false;
+                            // 訂閱行檢測（只移除明確的訂閱提示）
+                            if (isSubscriptionContent(line)) {
+                                console.log(`Removing subscription line: "${line}"`);
+                                return false;
+                            }
                             
                             return true;
                         })
                         .join('\n')
-                        .replace(/\n{4,}/g, '\n\n\n')  // 最多3個換行
-                        .replace(/[ \t]{3,}/g, '  ');  // 最多2個空格
+                        .replace(/\n{4,}/g, '\n\n\n')  // 最多保留3個連續換行
+                        .replace(/[ \t]{3,}/g, '  ');  // 最多保留2個空格
                 }
                 
                 // 數位時代專門擷取策略（簡化版，主要用通用清理）
