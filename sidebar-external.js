@@ -457,42 +457,33 @@ function performExtraction() {
                                 unwantedElements.forEach(el => el.remove());
                             });
                             
-                            // 根據內容特徵移除可疑元素
+                            // 只移除明顯的廣告和訂閱元素（更保守的策略）
                             const allElements = clonedElement.querySelectorAll('*');
                             allElements.forEach(el => {
                                 const text = el.textContent || '';
-                                const textLower = text.toLowerCase();
+                                const textLower = text.trim().toLowerCase();
                                 
-                                // 移除包含訂閱相關關鍵字的元素
-                                if (textLower.includes('訂閱') || textLower.includes('電子報') ||
-                                    textLower.includes('subscribe') || textLower.includes('newsletter') ||
-                                    textLower.includes('join') || textLower.includes('signup') ||
-                                    textLower.includes('加入會員') || textLower.includes('免費訂閱') ||
-                                    textLower.includes('立即訂閱') || textLower.includes('email')) {
+                                // 只移除明顯的訂閱提示（完整句子，不是單詞）
+                                if ((textLower.includes('訂閱電子報') || textLower.includes('免費訂閱') ||
+                                     textLower.includes('立即訂閱') || textLower.includes('加入會員') ||
+                                     textLower.includes('subscribe to') || textLower.includes('join our newsletter')) &&
+                                    text.trim().length < 100) {  // 短文字才移除
                                     el.remove();
                                     return;
                                 }
                                 
-                                // 移除廣告相關文字
-                                if (textLower.includes('廣告') || textLower.includes('advertisement') ||
-                                    textLower.includes('sponsored') || textLower.includes('贊助') ||
-                                    textLower.includes('ad ') || textLower.includes('推廣')) {
+                                // 只移除明顯的圖片來源標注
+                                if ((textLower.includes('圖片來源：') || textLower.includes('photo credit:') ||
+                                     textLower.includes('來源：getty') || textLower.includes('source:')) &&
+                                    text.trim().length < 80) {  // 短文字才移除
                                     el.remove();
                                     return;
                                 }
                                 
-                                // 移除社群分享相關
-                                if (textLower.includes('分享') || textLower.includes('share') ||
-                                    textLower.includes('facebook') || textLower.includes('twitter') ||
-                                    textLower.includes('line') || textLower.includes('按讚')) {
-                                    el.remove();
-                                    return;
-                                }
-                                
-                                // 移除圖片來源相關
-                                if (textLower.includes('圖片來源') || textLower.includes('photo credit') ||
-                                    textLower.includes('getty') || textLower.includes('shutterstock') ||
-                                    textLower.includes('路透') || textLower.includes('美聯社')) {
+                                // 移除明顯的廣告標示
+                                if ((textLower === '廣告' || textLower === 'advertisement' || 
+                                     textLower === 'sponsored content' || textLower.includes('贊助內容')) &&
+                                    text.trim().length < 50) {
                                     el.remove();
                                     return;
                                 }
@@ -507,19 +498,17 @@ function performExtraction() {
                                     .split('\n')
                                     .map(line => line.trim())
                                     .filter(line => {
-                                        if (line.length < 3) return false;
-                                        const lineLower = line.toLowerCase();
-                                        const unwantedKeywords = [
-                                            '訂閱', '電子報', 'subscribe', 'newsletter',
-                                            '廣告', 'advertisement', 'sponsored', '贊助',
-                                            '分享', 'share', 'facebook', 'twitter',
-                                            '圖片來源', 'photo credit', 'getty'
+                                        if (line.length < 2) return false;
+                                        const lineLower = line.toLowerCase().trim();
+                                        const exactUnwantedLines = [
+                                            '廣告', 'advertisement', 'sponsored',
+                                            '訂閱電子報', '免費訂閱', '立即訂閱'
                                         ];
-                                        return !unwantedKeywords.some(keyword => lineLower.includes(keyword));
+                                        return !exactUnwantedLines.includes(lineLower);
                                     })
                                     .join('\n')
-                                    .replace(/\n{3,}/g, '\n\n')
-                                    .replace(/[ \t]{2,}/g, ' ');
+                                    .replace(/\n{4,}/g, '\n\n\n')
+                                    .replace(/[ \t]{3,}/g, '  ');
                                 
                                 console.log(`Using textContent fallback: ${cleanText.length} characters`);
                                 
@@ -538,30 +527,28 @@ function performExtraction() {
                                 continue;
                             }
                             
-                            // 更徹底的文字清理
+                            // 保守的文字清理，保留正文內容
                             const cleanText = text.trim()
-                                .split('\n')  // 分割成行
-                                .map(line => line.trim())  // 清理每行的前後空白
+                                .split('\n')
+                                .map(line => line.trim())
                                 .filter(line => {
-                                    // 過濾掉空行和只有少量字符的行
-                                    if (line.length < 3) return false;
+                                    // 只過濾明顯無用的行
+                                    if (line.length < 2) return false;
                                     
-                                    // 過濾包含特定關鍵字的行
-                                    const lineLower = line.toLowerCase();
-                                    const unwantedKeywords = [
-                                        '訂閱', '電子報', 'subscribe', 'newsletter',
-                                        '廣告', 'advertisement', 'sponsored', '贊助',
-                                        '分享', 'share', 'facebook', 'twitter', 'line',
-                                        '圖片來源', 'photo credit', 'getty', 'shutterstock',
-                                        '加入會員', '免費訂閱', '立即訂閱', '按讚',
-                                        '推薦閱讀', '延伸閱讀', '相關文章'
+                                    // 只過濾明顯的廣告標示行（完整匹配，不是包含）
+                                    const lineLower = line.toLowerCase().trim();
+                                    const exactUnwantedLines = [
+                                        '廣告', 'advertisement', 'sponsored', '贊助內容',
+                                        '訂閱電子報', '免費訂閱', '立即訂閱', '加入會員',
+                                        'subscribe now', 'join newsletter', 'sign up'
                                     ];
                                     
-                                    return !unwantedKeywords.some(keyword => lineLower.includes(keyword));
+                                    // 只移除完全匹配的行，不是包含
+                                    return !exactUnwantedLines.includes(lineLower);
                                 })
-                                .join('\n')  // 重新組合
-                                .replace(/\n{3,}/g, '\n\n')   // 最多保留2個連續換行
-                                .replace(/[ \t]{2,}/g, ' ');   // 多個空格變一個
+                                .join('\n')
+                                .replace(/\n{4,}/g, '\n\n\n')   // 最多保留3個連續換行
+                                .replace(/[ \t]{3,}/g, '  ');   // 最多保留2個空格
                             
                             console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
                             
@@ -622,20 +609,17 @@ function performExtraction() {
                             .split('\n')
                             .map(line => line.trim())
                             .filter(line => {
-                                if (line.length < 3) return false;
-                                const lineLower = line.toLowerCase();
-                                const unwantedKeywords = [
-                                    '訂閱', '電子報', 'subscribe', 'newsletter',
-                                    '廣告', 'advertisement', 'sponsored', '贊助',
-                                    '分享', 'share', 'facebook', 'twitter', 'line',
-                                    '圖片來源', 'photo credit', 'getty', 'shutterstock',
-                                    '加入會員', '免費訂閱', '立即訂閱', '按讚'
+                                if (line.length < 2) return false;
+                                const lineLower = line.toLowerCase().trim();
+                                const exactUnwantedLines = [
+                                    '廣告', 'advertisement', 'sponsored', '贊助內容',
+                                    '訂閱電子報', '免費訂閱', '立即訂閱', '加入會員'
                                 ];
-                                return !unwantedKeywords.some(keyword => lineLower.includes(keyword));
+                                return !exactUnwantedLines.includes(lineLower);
                             })
                             .join('\n')
-                            .replace(/\n{3,}/g, '\n\n')
-                            .replace(/[ \t]{2,}/g, ' ');
+                            .replace(/\n{4,}/g, '\n\n\n')
+                            .replace(/[ \t]{3,}/g, '  ');
                         
                         if (cleanBodyText.length > bestContent.length) {
                             bestContent = cleanBodyText;
