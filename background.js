@@ -1,39 +1,23 @@
-// Initialize extension - simplified version
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('CleanClip extension installed');
-  
-  // Check if sidePanel API is available (Chrome 114+)
-  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
-    try {
-      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-      console.log('Side panel behavior set successfully');
-    } catch (error) {
-      console.error('Failed to set side panel behavior:', error);
-    }
-  } else {
-    console.warn('sidePanel API not available - Chrome 114+ required');
-  }
+// Ultra-simple background script to avoid any errors
+console.log('CleanClip background script loaded');
+
+// Handle extension installation
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('CleanClip extension installed successfully');
 });
 
-// Simple action handler - just open side panel
+// Handle action click to open side panel
 chrome.action.onClicked.addListener(async (tab) => {
-  console.log('CleanClip icon clicked');
+  console.log('CleanClip action clicked for tab:', tab.id);
   
-  if (chrome.sidePanel && chrome.sidePanel.open) {
-    try {
+  try {
+    if (chrome.sidePanel && chrome.sidePanel.open) {
       await chrome.sidePanel.open({ tabId: tab.id });
-      console.log('Side panel opened');
-    } catch (error) {
-      console.error('Failed to open side panel:', error);
+      console.log('Side panel opened successfully');
+    } else {
+      console.error('sidePanel API not available');
     }
-  }
-});
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'CONTENT_EXTRACTED') {
-    chrome.runtime.sendMessage({
-      type: 'CONTENT_READY',
-      data: request.data
-    });
+  } catch (error) {
+    console.error('Error opening side panel:', error);
   }
 });
