@@ -373,7 +373,172 @@ function performExtraction() {
                     return { content: '', selector: 'none', debug: [] };
                 }
                 
-                // 數位時代專門擷取策略
+                // 通用內容清理系統
+                function universalContentCleaning(element) {
+                    const clonedElement = element.cloneNode(true);
+                    
+                    // 1. CSS 選擇器過濾（適用所有網站）
+                    const universalUnwantedSelectors = [
+                        // 導航和結構
+                        'nav', 'header', 'footer', 'aside', '.sidebar', '.menu', '.navbar',
+                        // 廣告相關（通用）
+                        '.ad', '.ads', '.advertisement', '[class*="ad-"]', '[id*="ad-"]',
+                        '.sponsored', '.promo', '.banner', '.google-auto-placed', '.adsbygoogle',
+                        '[data-ad-client]', '[data-ad-slot]', '.adsystem', '.ad-container',
+                        // 訂閱相關（通用）
+                        '.newsletter', '.subscribe', '.subscription', '[class*="newsletter"]',
+                        '[class*="subscribe"]', '.email-signup', '.signup-form',
+                        // 社群分享（通用）
+                        '.social', '.share', '.sharing', '[class*="share"]', '[class*="social"]',
+                        // 圖片相關（通用）
+                        '.caption', '.photo-credit', '.image-source', 'figcaption',
+                        '.getty', '.reuters', '.ap-photo', '.photo-info', '.image-info',
+                        // 互動元素（通用）
+                        '.comments', '.comment', '.disqus', '.fb-comments', '.related',
+                        '.recommendation', '.more-stories', '.tags', '.categories',
+                        // 促銷內容（通用）
+                        '.cta', '.call-to-action', '.marketing', '.promotional',
+                        // 技術元素
+                        'script', 'style', 'noscript', 'iframe'
+                    ];
+                    
+                    universalUnwantedSelectors.forEach(selector => {
+                        const elements = clonedElement.querySelectorAll(selector);
+                        elements.forEach(el => el.remove());
+                    });
+                    
+                    // 2. 智能內容檢測（通用廣告和圖片說明識別）
+                    const allElements = clonedElement.querySelectorAll('*');
+                    allElements.forEach(el => {
+                        const text = el.textContent || '';
+                        const textLower = text.toLowerCase().trim();
+                        
+                        // 廣告內容檢測
+                        if (isAdvertisementContent(text)) {
+                            el.remove();
+                            return;
+                        }
+                        
+                        // 圖片說明檢測
+                        if (isImageCaptionContent(text)) {
+                            el.remove();
+                            return;
+                        }
+                        
+                        // 訂閱內容檢測
+                        if (isSubscriptionContent(text)) {
+                            el.remove();
+                            return;
+                        }
+                    });
+                    
+                    return clonedElement;
+                }
+                
+                // 廣告內容檢測函數
+                function isAdvertisementContent(text) {
+                    if (!text || text.length > 200) return false; // 長文不太可能是廣告
+                    
+                    const adPatterns = [
+                        // 中文廣告模式
+                        /^\s*廣告\s*$/,
+                        /^\s*贊助內容\s*$/,
+                        /^\s*推廣\s*$/,
+                        // 英文廣告模式  
+                        /^\s*advertisement\s*$/i,
+                        /^\s*sponsored\s*$/i,
+                        /^\s*promoted\s*$/i,
+                        // 複合廣告模式
+                        /贊助.*內容/,
+                        /sponsored.*content/i,
+                        /廣告.*訊息/
+                    ];
+                    
+                    return adPatterns.some(pattern => pattern.test(text.trim()));
+                }
+                
+                // 圖片說明檢測函數  
+                function isImageCaptionContent(text) {
+                    if (!text || text.length > 150) return false; // 長文不太可能是圖片說明
+                    
+                    const captionPatterns = [
+                        // 中文圖片說明模式
+                        /圖片來源[:：]/,
+                        /照片來源[:：]/,
+                        /資料來源[:：]/,
+                        /圖[:：]/,
+                        /來源[:：].*getty/i,
+                        /來源[:：].*shutterstock/i,
+                        /來源[:：].*reuters/i,
+                        // 英文圖片說明模式
+                        /photo.*credit/i,
+                        /image.*source/i,
+                        /source[:：].*getty/i,
+                        /courtesy.*of/i,
+                        // 攝影師標註
+                        /攝影[:：]/,
+                        /photographer[:：]/i
+                    ];
+                    
+                    return captionPatterns.some(pattern => pattern.test(text));
+                }
+                
+                // 訂閱內容檢測函數
+                function isSubscriptionContent(text) {
+                    if (!text || text.length > 300) return false;
+                    
+                    const subscriptionPatterns = [
+                        // 訂閱提示
+                        /立即訂閱/,
+                        /免費訂閱/,
+                        /訂閱.*電子報/,
+                        /加入會員/,
+                        /subscribe.*now/i,
+                        /join.*newsletter/i,
+                        /sign.*up.*free/i,
+                        // Email 相關
+                        /gmail\.com/,
+                        /hotmail\.com/,
+                        /yahoo\.com/,
+                        /請.*輸入.*email/i,
+                        // 謝謝訊息
+                        /謝謝訂閱/,
+                        /thank.*you.*subscribing/i,
+                        // 會議活動廣告
+                        /高峰會.*解密/,
+                        /營收.*加速器/,
+                        /roi.*倍增/i
+                    ];
+                    
+                    return subscriptionPatterns.some(pattern => pattern.test(text));
+                }
+                
+                // 通用文字清理函數
+                function universalTextCleaning(text) {
+                    return text.trim()
+                        .split('\n')
+                        .map(line => line.trim())
+                        .filter(line => {
+                            // 過濾太短的行
+                            if (line.length < 2) return false;
+                            
+                            // 過濾廣告行
+                            if (isAdvertisementContent(line)) return false;
+                            
+                            // 過濾圖片說明行
+                            if (isImageCaptionContent(line)) return false;
+                            
+                            // 過濾訂閱行
+                            if (isSubscriptionContent(line)) return false;
+                            
+                            return true;
+                        })
+                        .join('\n')
+                        .replace(/\n{4,}/g, '\n\n\n')  // 最多3個換行
+                        .replace(/[ \t]{3,}/g, '  ');  // 最多2個空格
+                }
+                
+                // 數位時代專門擷取策略（簡化版，主要用通用清理）
                 function extractBusinessNextContent() {
                     console.log('🔍 BusinessNext (數位時代) content extraction started');
                     
@@ -424,48 +589,10 @@ function performExtraction() {
                     for (let selector of contentSelectors) {
                         const element = document.querySelector(selector);
                         if (element) {
-                            const clonedElement = element.cloneNode(true);
+                            // 使用通用清理系統
+                            const cleanedElement = universalContentCleaning(element);
+                            content = cleanedElement.innerText || cleanedElement.textContent || '';
                             
-                            // 移除數位時代特有的廣告和訂閱元素
-                            const unwantedSelectors = [
-                                // 訂閱相關
-                                '.newsletter-signup', '.subscribe-box', '.email-form',
-                                '.subscription', '[class*="subscribe"]', '[class*="newsletter"]',
-                                // 廣告相關  
-                                '.ad', '.ads', '.advertisement', '[class*="ad-"]', 
-                                '.sponsored', '.promo', '.banner',
-                                // 會議和活動廣告
-                                '[class*="event"]', '[class*="conference"]', '[class*="summit"]',
-                                // 社群分享
-                                '.share', '.social', '[class*="share"]',
-                                // 其他雜訊
-                                '.related', '.recommendation', '.sidebar', 
-                                'script', 'style', 'noscript'
-                            ];
-                            
-                            unwantedSelectors.forEach(unwanted => {
-                                const elements = clonedElement.querySelectorAll(unwanted);
-                                elements.forEach(el => el.remove());
-                            });
-                            
-                            // 根據內容過濾廣告段落
-                            const paragraphs = clonedElement.querySelectorAll('p, div');
-                            paragraphs.forEach(p => {
-                                const text = p.textContent || '';
-                                const textLower = text.toLowerCase();
-                                
-                                // 移除明顯的廣告和訂閱段落
-                                if ((textLower.includes('訂閱') && textLower.includes('數位時代')) ||
-                                    (textLower.includes('掌握最新') && textLower.includes('ai')) ||
-                                    (textLower.includes('高峰會') || textLower.includes('解密')) ||
-                                    (textLower.includes('讓科技投入') && textLower.includes('roi')) ||
-                                    (textLower.includes('gmail.com') || textLower.includes('hotmail.com')) ||
-                                    (textLower.includes('謝謝訂閱') || textLower.includes('請稍等'))) {
-                                    p.remove();
-                                }
-                            });
-                            
-                            content = clonedElement.innerText || clonedElement.textContent || '';
                             if (content.trim().length > 500) {
                                 usedSelector = selector + ' (BusinessNext)';
                                 break;
@@ -473,24 +600,8 @@ function performExtraction() {
                         }
                     }
                     
-                    // 清理文字
-                    const cleanContent = content.trim()
-                        .split('\n')
-                        .map(line => line.trim())
-                        .filter(line => {
-                            if (line.length < 2) return false;
-                            const lineLower = line.toLowerCase();
-                            
-                            // 過濾廣告和訂閱行
-                            const adKeywords = [
-                                '訂閱數位時代', '掌握最新ai', '高峰會', '解密',
-                                'roi營收加速器', 'gmail.com', 'hotmail.com', '謝謝訂閱'
-                            ];
-                            
-                            return !adKeywords.some(keyword => lineLower.includes(keyword));
-                        })
-                        .join('\n')
-                        .replace(/\n{3,}/g, '\n\n');
+                    // 使用通用文字清理
+                    const cleanContent = universalTextCleaning(content);
                     
                     const finalContent = metadata + cleanContent;
                     
@@ -548,141 +659,10 @@ function performExtraction() {
                     for (let selector of selectors) {
                         const element = document.querySelector(selector);
                         if (element) {
-                            // 移除不必要的元素
-                            const clonedElement = element.cloneNode(true);
-                            const unwantedSelectors = [
-                                // 導航和結構元素
-                                'nav', 'header', 'footer', 'aside', '.sidebar', '.menu',
-                                // 廣告相關
-                                '.advertisement', '.ad', '.ads', '.ad-container', '.ad-wrapper', 
-                                '.ad-banner', '.ad-content', '.ad-block', '.ad-space',
-                                '.google-auto-placed', '.adsbygoogle', '[data-ad-client]',
-                                '[data-ad-slot]', '.adsystem', '.ad-unit',
-                                // 訂閱和電子報
-                                '.newsletter', '.newsletter-signup', '.newsletter-form',
-                                '.subscription', '.subscription-box', '.subscribe-box',
-                                '.email-signup', '.signup-form', '.join-newsletter',
-                                // 社群分享
-                                '.social-share', '.share-buttons', '.social-buttons', 
-                                '.sharing-tools', '.share-widget', '.social-media',
-                                // 圖片和媒體資訊
-                                '.image-caption', '.photo-credit', '.image-source', '.caption',
-                                '.getty', '.reuters', '.ap-photo', '.photo-info', '.image-info',
-                                'figcaption', '.media-caption', '.pic-info',
-                                // 相關文章和推薦
-                                '.related-articles', '.recommended', '.more-stories',
-                                '.related-content', '.suggestion-box',
-                                // 留言和互動
-                                '.comments', '.comment-section', '.disqus', '.fb-comments',
-                                // 促銷和宣傳
-                                '.promo-box', '.promotion', '.banner', '.call-to-action',
-                                '.cta-box', '.marketing-box',
-                                // 標籤和分類
-                                '.tags', '.categories', '.tag-list', '.breadcrumb',
-                                // 其他雜訊
-                                'iframe', 'script', 'style', 'noscript', '.hidden',
-                                // 版權和法律
-                                '.copyright', '.disclaimer', '.legal-notice'
-                            ];
-                            
-                            // 移除不需要的元素
-                            unwantedSelectors.forEach(unwanted => {
-                                const unwantedElements = clonedElement.querySelectorAll(unwanted);
-                                unwantedElements.forEach(el => el.remove());
-                            });
-                            
-                            // 只移除明顯的廣告和訂閱元素（更保守的策略）
-                            const allElements = clonedElement.querySelectorAll('*');
-                            allElements.forEach(el => {
-                                const text = el.textContent || '';
-                                const textLower = text.trim().toLowerCase();
-                                
-                                // 只移除明顯的訂閱提示（完整句子，不是單詞）
-                                if ((textLower.includes('訂閱電子報') || textLower.includes('免費訂閱') ||
-                                     textLower.includes('立即訂閱') || textLower.includes('加入會員') ||
-                                     textLower.includes('subscribe to') || textLower.includes('join our newsletter')) &&
-                                    text.trim().length < 100) {  // 短文字才移除
-                                    el.remove();
-                                    return;
-                                }
-                                
-                                // 只移除明顯的圖片來源標注
-                                if ((textLower.includes('圖片來源：') || textLower.includes('photo credit:') ||
-                                     textLower.includes('來源：getty') || textLower.includes('source:')) &&
-                                    text.trim().length < 80) {  // 短文字才移除
-                                    el.remove();
-                                    return;
-                                }
-                                
-                                // 移除明顯的廣告標示
-                                if ((textLower === '廣告' || textLower === 'advertisement' || 
-                                     textLower === 'sponsored content' || textLower.includes('贊助內容')) &&
-                                    text.trim().length < 50) {
-                                    el.remove();
-                                    return;
-                                }
-                            });
-                            
-                            // 使用 innerText 來保持原始排版
-                            const text = clonedElement.innerText || '';
-                            if (!text) {
-                                // 備案：使用 textContent 但需要更多處理
-                                const rawText = clonedElement.textContent || '';
-                                const cleanText = rawText.trim()
-                                    .split('\n')
-                                    .map(line => line.trim())
-                                    .filter(line => {
-                                        if (line.length < 2) return false;
-                                        const lineLower = line.toLowerCase().trim();
-                                        const exactUnwantedLines = [
-                                            '廣告', 'advertisement', 'sponsored',
-                                            '訂閱電子報', '免費訂閱', '立即訂閱'
-                                        ];
-                                        return !exactUnwantedLines.includes(lineLower);
-                                    })
-                                    .join('\n')
-                                    .replace(/\n{4,}/g, '\n\n\n')
-                                    .replace(/[ \t]{3,}/g, '  ');
-                                
-                                console.log(`Using textContent fallback: ${cleanText.length} characters`);
-                                
-                                if (cleanText.length > 100) {
-                                    allTexts.push({
-                                        text: cleanText,
-                                        length: cleanText.length,
-                                        selector: selector + ' (textContent)'
-                                    });
-                                    
-                                    if (cleanText.length > bestContent.length) {
-                                        bestContent = cleanText;
-                                        usedSelector = selector + ' (textContent)';
-                                    }
-                                }
-                                continue;
-                            }
-                            
-                            // 保守的文字清理，保留正文內容
-                            const cleanText = text.trim()
-                                .split('\n')
-                                .map(line => line.trim())
-                                .filter(line => {
-                                    // 只過濾明顯無用的行
-                                    if (line.length < 2) return false;
-                                    
-                                    // 只過濾明顯的廣告標示行（完整匹配，不是包含）
-                                    const lineLower = line.toLowerCase().trim();
-                                    const exactUnwantedLines = [
-                                        '廣告', 'advertisement', 'sponsored', '贊助內容',
-                                        '訂閱電子報', '免費訂閱', '立即訂閱', '加入會員',
-                                        'subscribe now', 'join newsletter', 'sign up'
-                                    ];
-                                    
-                                    // 只移除完全匹配的行，不是包含
-                                    return !exactUnwantedLines.includes(lineLower);
-                                })
-                                .join('\n')
-                                .replace(/\n{4,}/g, '\n\n\n')   // 最多保留3個連續換行
-                                .replace(/[ \t]{3,}/g, '  ');   // 最多保留2個空格
+                            // 使用通用清理系統
+                            const cleanedElement = universalContentCleaning(element);
+                            const text = cleanedElement.innerText || cleanedElement.textContent || '';
+                            const cleanText = universalTextCleaning(text);
                             
                             console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
                             
@@ -707,53 +687,10 @@ function performExtraction() {
                     // 如果還是沒找到好內容，使用 body 但清理掉導航等元素
                     if (bestContent.length < 200) {
                         console.log('🔄 Fallback: using cleaned body content');
-                        const bodyClone = document.body.cloneNode(true);
-                        const unwantedSelectors = [
-                            // 導航和結構元素
-                            'nav', 'header', 'footer', 'aside', '.sidebar', '.menu', '.navbar',
-                            // 廣告相關
-                            '.advertisement', '.ad', '.ads', '.ad-container', '.ad-wrapper', 
-                            '.ad-banner', '.ad-content', '.google-auto-placed', '.adsbygoogle',
-                            '[data-ad-client]', '[data-ad-slot]', '.adsystem',
-                            // 訂閱和電子報
-                            '.newsletter', '.newsletter-signup', '.subscription-box',
-                            '.email-signup', '.subscribe-box', '.join-newsletter',
-                            // 社群分享和互動
-                            '.social-share', '.share-buttons', '.social-buttons', '.sharing-tools',
-                            '.comments', '.comment-section', '.disqus', '.fb-comments',
-                            // 圖片和媒體資訊
-                            '.image-caption', '.photo-credit', '.image-source', 'figcaption',
-                            '.getty', '.reuters', '.ap-photo', '.photo-info',
-                            // 相關內容和推薦
-                            '.related-articles', '.recommended', '.more-stories',
-                            '.related-content', '.suggestion-box',
-                            // 促銷和其他雜訊
-                            '.promo-box', '.promotion', '.banner', '.call-to-action',
-                            '.tags', '.categories', '.breadcrumb', '.copyright',
-                            'script', 'style', 'noscript', 'iframe'
-                        ];
-                        
-                        unwantedSelectors.forEach(unwanted => {
-                            const unwantedElements = bodyClone.querySelectorAll(unwanted);
-                            unwantedElements.forEach(el => el.remove());
-                        });
-                        
-                        const bodyText = bodyClone.innerText || bodyClone.textContent || '';
-                        const cleanBodyText = bodyText.trim()
-                            .split('\n')
-                            .map(line => line.trim())
-                            .filter(line => {
-                                if (line.length < 2) return false;
-                                const lineLower = line.toLowerCase().trim();
-                                const exactUnwantedLines = [
-                                    '廣告', 'advertisement', 'sponsored', '贊助內容',
-                                    '訂閱電子報', '免費訂閱', '立即訂閱', '加入會員'
-                                ];
-                                return !exactUnwantedLines.includes(lineLower);
-                            })
-                            .join('\n')
-                            .replace(/\n{4,}/g, '\n\n\n')
-                            .replace(/[ \t]{3,}/g, '  ');
+                        // 使用通用清理系統處理整個 body
+                        const cleanedBody = universalContentCleaning(document.body);
+                        const bodyText = cleanedBody.innerText || cleanedBody.textContent || '';
+                        const cleanBodyText = universalTextCleaning(bodyText);
                         
                         if (cleanBodyText.length > bestContent.length) {
                             bestContent = cleanBodyText;
