@@ -232,13 +232,222 @@ function extractContent() {
             target: {tabId: tab.id},
             function: function() {
                 const title = document.title || '未知標題';
-                const content = document.body.innerText || document.body.textContent || '';
+                const url = window.location.href;
+                
+                // 智能內容擷取函數
+                function extractContent() {
+                    // Facebook 特殊處理
+                    if (url.includes('facebook.com')) {
+                        return extractFacebookContent();
+                    }
+                    
+                    // Instagram 特殊處理
+                    if (url.includes('instagram.com')) {
+                        return extractInstagramContent();
+                    }
+                    
+                    // Twitter/X 特殊處理
+                    if (url.includes('twitter.com') || url.includes('x.com')) {
+                        return extractTwitterContent();
+                    }
+                    
+                    // 一般網站擷取
+                    return extractGeneralContent();
+                }
+                
+                // Facebook 專門擷取策略
+                function extractFacebookContent() {
+                    console.log('🔍 Facebook content extraction started');
+                    
+                    const selectors = [
+                        // Facebook 貼文內容選擇器（按優先順序）
+                        '[data-ad-preview="message"]',
+                        '[data-testid="post_message"] div[dir="auto"]',
+                        '[data-testid="post_message"]',
+                        '[aria-label="貼文內容"]',
+                        '[aria-label="Post"]',
+                        '.userContent',
+                        '.text_exposed_root',
+                        'div[data-testid="post_message"] span',
+                        'div[role="article"] div[dir="auto"]',
+                        '[data-ft] .userContent',
+                        // 新版 Facebook 選擇器
+                        'div[data-pagelet="FeedUnit"] div[dir="auto"]',
+                        'div[role="main"] div[dir="auto"]',
+                        // 備用選擇器
+                        'span[dir="auto"]',
+                        'p[dir="auto"]'
+                    ];
+                    
+                    let bestContent = '';
+                    let usedSelector = '';
+                    let allTexts = [];
+                    
+                    // 嘗試每個選擇器
+                    for (let selector of selectors) {
+                        const elements = document.querySelectorAll(selector);
+                        console.log(`Trying selector: ${selector}, found ${elements.length} elements`);
+                        
+                        for (let element of elements) {
+                            const text = element.innerText || element.textContent || '';
+                            if (text && text.trim().length > 20) {
+                                allTexts.push({
+                                    text: text.trim(),
+                                    length: text.trim().length,
+                                    selector: selector
+                                });
+                                
+                                // 如果找到較長的內容，使用它
+                                if (text.trim().length > bestContent.length) {
+                                    bestContent = text.trim();
+                                    usedSelector = selector;
+                                }
+                            }
+                        }
+                        
+                        // 如果已經找到不錯的內容就停止
+                        if (bestContent.length > 100) break;
+                    }
+                    
+                    // 如果還是沒找到好內容，嘗試更廣泛的搜索
+                    if (bestContent.length < 50) {
+                        console.log('🔄 Fallback: searching for any meaningful text');
+                        
+                        // 查找包含中文或英文段落的元素
+                        const allDivs = document.querySelectorAll('div');
+                        for (let div of allDivs) {
+                            const text = div.innerText || div.textContent || '';
+                            const directText = Array.from(div.childNodes)
+                                .filter(node => node.nodeType === Node.TEXT_NODE)
+                                .map(node => node.textContent.trim())
+                                .join(' ');
+                            
+                            // 優先使用直接的文字節點
+                            if (directText.length > 20) {
+                                allTexts.push({
+                                    text: directText,
+                                    length: directText.length,
+                                    selector: 'direct text node'
+                                });
+                                
+                                if (directText.length > bestContent.length) {
+                                    bestContent = directText;
+                                    usedSelector = 'direct text node';
+                                }
+                            }
+                        }
+                    }
+                    
+                    console.log(`Facebook extraction result: ${bestContent.length} characters using ${usedSelector}`);
+                    return {
+                        content: bestContent,
+                        selector: usedSelector,
+                        debug: allTexts.slice(0, 5) // 保留前5個結果用於調試
+                    };
+                }
+                
+                // Instagram 擷取策略
+                function extractInstagramContent() {
+                    const selectors = [
+                        'article h1',
+                        'article span',
+                        'div[role="button"] + span',
+                        'time ~ div span'
+                    ];
+                    
+                    for (let selector of selectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            const text = element.innerText || element.textContent || '';
+                            if (text.trim().length > 10) {
+                                return {
+                                    content: text.trim(),
+                                    selector: selector,
+                                    debug: []
+                                };
+                            }
+                        }
+                    }
+                    
+                    return { content: '', selector: 'none', debug: [] };
+                }
+                
+                // Twitter 擷取策略
+                function extractTwitterContent() {
+                    const selectors = [
+                        '[data-testid="tweetText"]',
+                        'div[lang] span',
+                        'article div[lang]'
+                    ];
+                    
+                    for (let selector of selectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            const text = element.innerText || element.textContent || '';
+                            if (text.trim().length > 10) {
+                                return {
+                                    content: text.trim(),
+                                    selector: selector,
+                                    debug: []
+                                };
+                            }
+                        }
+                    }
+                    
+                    return { content: '', selector: 'none', debug: [] };
+                }
+                
+                // 一般網站擷取策略
+                function extractGeneralContent() {
+                    const selectors = [
+                        'article',
+                        'main',
+                        '[role="main"]',
+                        '.story-body',
+                        '.article-body',
+                        '.news-content',
+                        '.post-content',
+                        '.entry-content',
+                        '.content',
+                        '#content'
+                    ];
+                    
+                    for (let selector of selectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            const text = element.innerText || element.textContent || '';
+                            if (text.trim().length > 100) {
+                                return {
+                                    content: text.trim(),
+                                    selector: selector,
+                                    debug: []
+                                };
+                            }
+                        }
+                    }
+                    
+                    // 最後備案：使用 body
+                    const bodyText = document.body.innerText || document.body.textContent || '';
+                    return {
+                        content: bodyText.trim(),
+                        selector: 'body',
+                        debug: []
+                    };
+                }
+                
+                // 執行擷取
+                const result = extractContent();
                 
                 return {
                     title: title,
-                    content: content.substring(0, 2000),
-                    length: content.length,
-                    url: window.location.href
+                    content: result.content.substring(0, 3000), // 增加字數限制
+                    length: result.content.length,
+                    selector: result.selector,
+                    url: url,
+                    debug: result.debug || [],
+                    platform: url.includes('facebook.com') ? 'Facebook' : 
+                             url.includes('instagram.com') ? 'Instagram' :
+                             url.includes('twitter.com') || url.includes('x.com') ? 'Twitter' : 'General'
                 };
             }
         }).then(function(results) {
@@ -251,10 +460,21 @@ function extractContent() {
                 }
                 
                 if (textarea) {
-                    textarea.value = `標題：${data.title}\n` +
+                    let debugInfo = '';
+                    if (data.debug && data.debug.length > 0) {
+                        debugInfo = '\n--- 調試資訊 ---\n' +
+                            data.debug.map((item, index) => 
+                                `${index + 1}. ${item.selector} (${item.length} 字符): ${item.text.substring(0, 100)}...`
+                            ).join('\n') + '\n';
+                    }
+                    
+                    textarea.value = `平台：${data.platform || 'General'}\n` +
+                        `標題：${data.title}\n` +
                         `網址：${data.url}\n` +
-                        `長度：${data.length} 字符\n\n` +
-                        `--- 內容 ---\n${data.content}`;
+                        `使用選擇器：${data.selector}\n` +
+                        `內容長度：${data.length} 字符\n` +
+                        debugInfo +
+                        `\n--- 擷取內容 ---\n${data.content}`;
                 }
             } else {
                 console.error('No extraction result');
