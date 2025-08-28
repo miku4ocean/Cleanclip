@@ -75,8 +75,10 @@ function clearAll() {
     const outputDiv = document.getElementById('output');
     const textarea = document.getElementById('textarea');
     
-    // 重置擷取狀態
+    // 完全重置所有狀態
     isExtracting = false;
+    lastTabId = null;
+    lastTabUrl = null;
     
     if (outputDiv) {
         outputDiv.innerHTML = '✅ 內容已清空，可以擷取新的網頁內容';
@@ -86,34 +88,35 @@ function clearAll() {
         textarea.value = '';
     }
     
-    console.log('🔄 State reset completed, ready for new extraction');
+    console.log('🔄 All states reset completed, ready for new extraction from any page');
 }
 
-// 檢查並重置狀態函數
+// 檢查並重置狀態函數（改為 Promise 版本）
 function checkAndResetState() {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (tabs && tabs[0]) {
-            const currentTab = tabs[0];
-            if (lastTabId !== currentTab.id || lastTabUrl !== currentTab.url) {
-                console.log('🔄 Page changed, resetting extraction state');
-                isExtracting = false;
-                lastTabId = currentTab.id;
-                lastTabUrl = currentTab.url;
+    return new Promise((resolve) => {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs && tabs[0]) {
+                const currentTab = tabs[0];
+                if (lastTabId !== currentTab.id || lastTabUrl !== currentTab.url) {
+                    console.log('🔄 Page changed, resetting extraction state');
+                    isExtracting = false;
+                    lastTabId = currentTab.id;
+                    lastTabUrl = currentTab.url;
+                }
             }
-        }
+            resolve();
+        });
     });
 }
 
-function extractContent() {
+async function extractContent() {
     console.log('📄 Extract content function called');
     
-    // 先檢查並重置狀態
-    checkAndResetState();
+    // 等待狀態檢查完成
+    await checkAndResetState();
     
-    // 短暫延遲確保狀態檢查完成
-    setTimeout(() => {
-        performExtraction();
-    }, 100);
+    // 直接執行擷取
+    performExtraction();
 }
 
 function performExtraction() {
@@ -198,7 +201,8 @@ function performExtraction() {
                     
                     // 台灣新聞網站特殊處理
                     if (url.includes('cw.com.tw') || url.includes('udn.com') || 
-                        url.includes('pixnet.net') || url.includes('thenewslens.com')) {
+                        url.includes('pixnet.net') || url.includes('thenewslens.com') ||
+                        url.includes('cna.com.tw')) {
                         return extractTaiwanNewsContent();
                     }
                     
@@ -470,7 +474,8 @@ function performExtraction() {
                     if (hostname.includes('bnext.com') || hostname.includes('businessweekly.com') || 
                         hostname.includes('cw.com.tw') || hostname.includes('udn.com') ||
                         hostname.includes('chinatimes.com') || hostname.includes('ltn.com.tw') ||
-                        hostname.includes('pixnet.net') || hostname.includes('thenewslens.com')) return 'taiwan_news';
+                        hostname.includes('pixnet.net') || hostname.includes('thenewslens.com') ||
+                        hostname.includes('cna.com.tw')) return 'taiwan_news';
                     if (hostname.includes('techcrunch.com') || hostname.includes('theverge.com') || 
                         hostname.includes('wired.com')) return 'tech_news';
                     if (hostname.includes('reuters.com') || hostname.includes('bloomberg.com') ||
@@ -840,6 +845,19 @@ function performExtraction() {
                             '.entry-content',
                             'main .article-content',
                             '[data-testid="article-content"]'
+                        ];
+                    } else if (url.includes('cna.com.tw')) {
+                        // 中央社
+                        selectors = [
+                            '.article-content',
+                            '.article-body',
+                            '.news-content',
+                            '#news-content',
+                            '.story-body',
+                            '.content-wrapper p',
+                            '.news-article-content p',
+                            '.article-text p',
+                            'main .article-content p'
                         ];
                     }
                     
