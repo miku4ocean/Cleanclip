@@ -7,12 +7,12 @@
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   
   "action": {
     "default_title": "CleanClip - 文字擷取工具",
-    "default_popup": "sidebar.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -38,6 +38,10 @@
   
   "background": {
     "service_worker": "background.js"
+  },
+
+  "side_panel": {
+    "default_path": "sidebar.html"
   },
   
   
