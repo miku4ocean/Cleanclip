@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanClip</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc; color: #1e293b; line-height: 1.5; padding: 0; margin: 0;
+    }
+    .container { 
+      height: 100vh; display: flex; flex-direction: column; background: white;
+    }
+    .header { 
+      padding: 16px; border-bottom: 1px solid #e2e8f0; background: white;
+    }
+    .logo { 
+      font-size: 20px; font-weight: 600; color: #3b82f6; margin-bottom: 8px;
+    }
+    .status { 
+      padding: 8px 12px; margin-bottom: 12px; border-radius: 6px; font-size: 14px; text-align: center;
+    }
+    .status.loading { background: #dbeafe; color: #1d4ed8; }
+    .status.success { background: #d1fae5; color: #059669; }
+    .status.error { background: #fee2e2; color: #dc2626; }
+    .content { 
+      flex: 1; padding: 16px; display: flex; flex-direction: column;
+    }
+    .textarea { 
+      flex: 1; min-height: 400px; padding: 12px; border: 1px solid #d1d5db; 
+      border-radius: 6px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px;
+      resize: none;
+    }
+    .actions { 
+      display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;
+    }
+    .btn { 
+      padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; 
+      font-size: 14px; font-weight: 500;
+    }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-success { background: #059669; color: white; }
+    .input { 
+      width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; 
+      font-size: 14px; margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">CleanClip</div>
+      <input type="password" id="apiKey" class="input" placeholder="輸入 OpenAI API 金鑰（選用）">
+    </div>
+    
+    <div class="content">
+      <div id="status" class="status loading">正在擷取網頁內容...</div>
+      
+      <label style="font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #374151;">
+        擷取的內容
+      </label>
+      
+      <textarea id="textArea" class="textarea" placeholder="擷取的內容將顯示在這裡...&#10;&#10;如果長時間無內容，請：&#10;1. 點擊「重新擷取」按鈕&#10;2. 重新整理網頁&#10;3. 手動複製文字到此處"></textarea>
+      
+      <div class="actions">
+        <button id="retryBtn" class="btn btn-primary">重新擷取</button>
+        <button id="saveBtn" class="btn btn-success">儲存文字</button>
+        <button id="extractBtn" class="btn btn-primary">立即擷取</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    console.log('CleanClip minimal version loading...');
+    
+    const statusEl = document.getElementById('status');
+    const textArea = document.getElementById('textArea');
+    const retryBtn = document.getElementById('retryBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const extractBtn = document.getElementById('extractBtn');
+    
+    let hasContent = false;
+    
+    function updateStatus(type, message) {
+      statusEl.className = `status ${type}`;
+      statusEl.textContent = message;
+    }
+    
+    function extractBasicContent() {
+      updateStatus('loading', '正在擷取內容...');
+      
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs[0]) {
+          // Direct content extraction from page
+          chrome.scripting.executeScript({
+            target: {tabId: tabs[0].id},
+            function: () => {
+              // Simple content extraction
+              const selectors = [
+                'article',
+                '[role="main"]',
+                'main',
+                '.story-body',
+                '.article-body',
+                '.news-content',
+                '.post-content',
+                '.entry-content',
+                '.content',
+                '#content'
+              ];
+              
+              let content = '';
+              
+              for (const selector of selectors) {
+                const element = document.querySelector(selector);
+                if (element) {
+                  content = element.innerText || element.textContent;
+                  if (content && content.length > 100) {
+                    console.log('Found content with selector:', selector);
+                    break;
+                  }
+                }
+              }
+              
+              if (!content || content.length < 100) {
+                // Fallback to body content
+                content = document.body.innerText || document.body.textContent || '';
+              }
+              
+              // Clean up content
+              return content
+                .replace(/\s+/g, ' ')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            }
+          }, (results) => {
+            if (results && results[0] && results[0].result) {
+              const content = results[0].result;
+              if (content && content.length > 50) {
+                textArea.value = content;
+                hasContent = true;
+                updateStatus('success', `已擷取 ${content.length} 個字符的內容`);
+              } else {
+                updateStatus('error', '未找到內容，請手動複製文字到下方文字框');
+              }
+            } else {
+              updateStatus('error', '擷取失敗，請重新整理頁面後再試');
+            }
+          });
+        }
+      });
+    }
+    
+    function saveText() {
+      const text = textArea.value.trim();
+      if (!text) {
+        alert('沒有內容可以儲存');
+        return;
+      }
+      
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cleanclip-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      updateStatus('success', '文字已儲存');
+    }
+    
+    // Event listeners
+    retryBtn.onclick = extractBasicContent;
+    extractBtn.onclick = extractBasicContent;
+    saveBtn.onclick = saveText;
+    
+    // Auto extract after 1 second
+    setTimeout(extractBasicContent, 1000);
+    
+    // Also try immediate extraction
+    extractBasicContent();
+    
+    console.log('CleanClip minimal version ready');
+  </script>
+</body>
+</html>
