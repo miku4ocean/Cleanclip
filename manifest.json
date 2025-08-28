@@ -25,7 +25,7 @@
   },
 
   "side_panel": {
-    "default_path": "sidebar-debug.html"
+    "default_path": "sidebar-external.html"
   },
   
   "icons": {
