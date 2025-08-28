@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CleanClip Debug</title>
+    <style>
+        body { 
+            margin: 0; padding: 20px; font-family: Arial, sans-serif; 
+            background: #f5f5f5;
+        }
+        .container { 
+            background: white; padding: 20px; border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .title { 
+            font-size: 24px; font-weight: bold; color: #2563eb; 
+            margin-bottom: 20px; text-align: center;
+        }
+        .test-area { 
+            background: #fef3c7; padding: 15px; border-radius: 5px; 
+            margin: 15px 0; border-left: 4px solid #f59e0b;
+        }
+        .result { 
+            background: #f0f9ff; padding: 15px; border-radius: 5px; 
+            border-left: 4px solid #0ea5e9; min-height: 100px;
+        }
+        button { 
+            display: block; width: 100%; padding: 12px; margin: 8px 0; 
+            background: #2563eb; color: white; border: none; border-radius: 5px; 
+            cursor: pointer; font-size: 16px;
+        }
+        button:hover { background: #1d4ed8; }
+        button:active { background: #1e40af; }
+        textarea { 
+            width: 100%; height: 150px; padding: 10px; border: 1px solid #d1d5db; 
+            border-radius: 5px; font-family: monospace; resize: vertical;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">🔧 CleanClip 除錯版本</div>
+        
+        <div class="test-area">
+            <strong>🧪 JavaScript 測試區域</strong><br>
+            點擊按鈕測試 JavaScript 是否正常運作
+        </div>
+        
+        <!-- 使用內嵌事件處理器 -->
+        <button onclick="testJS()">
+            🧪 測試 JavaScript
+        </button>
+        
+        <button onclick="testAlert()">
+            🔔 測試 Alert
+        </button>
+        
+        <button onclick="testConsole()">
+            📝 測試 Console
+        </button>
+        
+        <button onclick="testDOM()">
+            🎯 測試 DOM 操作
+        </button>
+        
+        <div class="result">
+            <div id="output">等待測試結果...</div>
+        </div>
+        
+        <textarea id="textarea" placeholder="測試輸出區域..."></textarea>
+        
+        <button onclick="clearAll()">
+            🗑️ 清空結果
+        </button>
+    </div>
+
+    <script>
+        // 全域函數定義
+        function testJS() {
+            console.log('testJS function called');
+            document.getElementById('output').innerHTML = '✅ JavaScript 正常運作！<br>時間：' + new Date().toLocaleString();
+            document.getElementById('textarea').value = 'JavaScript 測試成功！\n\n如果你看到這個訊息，表示 JavaScript 完全正常。';
+        }
+        
+        function testAlert() {
+            console.log('testAlert function called');
+            alert('🎉 Alert 功能正常！\n\n如果你看到這個彈窗，表示 JavaScript 事件處理正常運作。');
+            document.getElementById('output').innerHTML += '<br>✅ Alert 測試完成';
+        }
+        
+        function testConsole() {
+            console.log('🔥 Console 測試成功！如果你看到這個訊息，表示 console.log 正常運作。');
+            console.warn('⚠️ 這是一個警告訊息測試');
+            console.error('❌ 這是一個錯誤訊息測試（用於測試，非真實錯誤）');
+            document.getElementById('output').innerHTML += '<br>✅ Console 訊息已輸出，請檢查開發者工具';
+        }
+        
+        function testDOM() {
+            console.log('testDOM function called');
+            const outputDiv = document.getElementById('output');
+            const textarea = document.getElementById('textarea');
+            
+            outputDiv.innerHTML += '<br>🎯 DOM 操作測試：';
+            outputDiv.innerHTML += '<br>- 找到 output 元素：' + (outputDiv ? '✅' : '❌');
+            outputDiv.innerHTML += '<br>- 找到 textarea 元素：' + (textarea ? '✅' : '❌');
+            outputDiv.innerHTML += '<br>- 當前時間：' + new Date().toLocaleTimeString();
+            
+            if (textarea) {
+                textarea.value += '\nDOM 操作測試完成！\n所有元素都能正常存取和修改。';
+            }
+        }
+        
+        function clearAll() {
+            console.log('clearAll function called');
+            document.getElementById('output').innerHTML = '🗑️ 結果已清空，等待新的測試...';
+            document.getElementById('textarea').value = '';
+        }
+        
+        // 頁面載入時的初始化
+        console.log('🚀 CleanClip Debug 版本載入完成');
+        console.log('📍 當前位置：', window.location.href);
+        console.log('🔧 Chrome 版本：', navigator.userAgent);
+        
+        // 測試基本 DOM 操作
+        setTimeout(function() {
+            const output = document.getElementById('output');
+            if (output) {
+                output.innerHTML = '🟢 頁面載入完成，JavaScript 環境正常！<br>請點擊上方按鈕進行測試。';
+            }
+        }, 500);
+        
+        // 檢查 Chrome 擴充功能環境
+        setTimeout(function() {
+            console.log('🔍 Chrome 擴充功能環境檢查：');
+            console.log('- chrome 物件：', typeof chrome !== 'undefined' ? '✅ 可用' : '❌ 不可用');
+            console.log('- chrome.tabs：', typeof chrome !== 'undefined' && chrome.tabs ? '✅ 可用' : '❌ 不可用');
+            console.log('- chrome.scripting：', typeof chrome !== 'undefined' && chrome.scripting ? '✅ 可用' : '❌ 不可用');
+        }, 1000);
+    </script>
+</body>
+</html>
