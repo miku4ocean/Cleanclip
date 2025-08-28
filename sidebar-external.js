@@ -847,17 +847,19 @@ function performExtraction() {
                             '[data-testid="article-content"]'
                         ];
                     } else if (url.includes('cna.com.tw')) {
-                        // 中央社
+                        // 中央社 - 2025年更新版選擇器
                         selectors = [
-                            '.article-content',
+                            '.centralContent',     // 主要內容容器
+                            '.pageContent',        // 文章內容容器
+                            '.paragraph',          // 段落容器
+                            'article',             // 標準文章標籤
+                            '.article-content',    // 備用選擇器
                             '.article-body',
                             '.news-content',
                             '#news-content',
                             '.story-body',
-                            '.content-wrapper p',
-                            '.news-article-content p',
-                            '.article-text p',
-                            'main .article-content p'
+                            'main',                // 主要內容區域
+                            '[role="main"]'        // 語義化主要內容
                         ];
                     }
                     
