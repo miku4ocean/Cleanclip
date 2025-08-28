@@ -9,8 +9,8 @@ const API_MODELS = [
 function CleanClipSidebar() {
   const [extractedText, setExtractedText] = useState('');
   const [editedText, setEditedText] = useState('');
-  const [status, setStatus] = useState('waiting');
-  const [statusMessage, setStatusMessage] = useState('點擊外掛圖示開始擷取內容');
+  const [status, setStatus] = useState('loading');
+  const [statusMessage, setStatusMessage] = useState('正在擷取網頁內容...');
   const [apiKey, setApiKey] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
   const [isProcessing, setIsProcessing] = useState(false);
