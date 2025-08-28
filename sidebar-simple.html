@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CleanClip Simple</title>
+    <style>
+        body { 
+            margin: 0; padding: 20px; font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; min-height: 100vh;
+        }
+        .card { 
+            background: rgba(255,255,255,0.95); color: #333; padding: 30px; 
+            border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); 
+            backdrop-filter: blur(10px);
+        }
+        h1 { color: #4a5568; margin: 0 0 20px 0; font-size: 28px; }
+        .status { 
+            padding: 15px; margin: 15px 0; border-radius: 8px; font-weight: bold;
+            border-left: 5px solid #3182ce;
+        }
+        .success { background: #c6f6d5; color: #2f855a; border-color: #38a169; }
+        .error { background: #fed7d7; color: #c53030; border-color: #e53e3e; }
+        .loading { background: #bee3f8; color: #2b6cb0; border-color: #3182ce; }
+        textarea { 
+            width: 100%; height: 200px; padding: 15px; border: 2px solid #e2e8f0; 
+            border-radius: 8px; font-size: 14px; font-family: monospace;
+            resize: vertical; box-sizing: border-box;
+        }
+        .btn { 
+            display: inline-block; padding: 12px 24px; margin: 8px; 
+            background: #4299e1; color: white; border: none; border-radius: 6px; 
+            cursor: pointer; font-size: 16px; text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background: #3182ce; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn.success { background: #48bb78; }
+        .btn.success:hover { background: #38a169; }
+        .debug { 
+            background: #1a202c; color: #e2e8f0; padding: 15px; border-radius: 8px; 
+            margin-top: 20px; max-height: 200px; overflow-y: auto; font-family: monospace;
+            font-size: 12px; line-height: 1.4;
+        }
+        .step { margin: 10px 0; padding: 10px; background: #f7fafc; border-radius: 5px; }
+        .emoji { font-size: 20px; margin-right: 8px; }
+        .highlight { background: #ffd700; color: #333; padding: 2px 6px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1><span class="emoji">🧹</span>CleanClip 簡化版</h1>
+        
+        <div class="step">
+            <div class="emoji">📋</div>
+            <strong>使用說明</strong><br>
+            1. 點擊「測試」確認按鈕功能<br>
+            2. 點擊「擷取」取得網頁內容<br>
+            3. 編輯內容後點擊「儲存」
+        </div>
+        
+        <div id="status" class="status loading">
+            <span class="emoji">⏳</span>準備中...
+        </div>
+        
+        <div style="margin: 20px 0;">
+            <button class="btn" onclick="testFunction()">
+                <span class="emoji">🧪</span>測試
+            </button>
+            <button class="btn" onclick="extractContent()">
+                <span class="emoji">📄</span>擷取
+            </button>
+            <button class="btn success" onclick="saveText()">
+                <span class="emoji">💾</span>儲存
+            </button>
+        </div>
+        
+        <textarea id="content" placeholder="擷取的內容會顯示在這裡...&#10;&#10;你也可以直接在這裡輸入或貼上文字進行編輯。"></textarea>
+        
+        <div id="debug" class="debug">
+            <div><strong>🔍 除錯資訊：</strong></div>
+            <div>等待操作...</div>
+        </div>
+    </div>
+
+    <script>
+        // 防止所有錯誤
+        window.onerror = function(msg, url, line, col, error) {
+            console.log('Error caught:', msg);
+            return true; // 防止默認錯誤處理
+        };
+        
+        let debugEl, statusEl, contentEl;
+        
+        // 等待 DOM 加載完成
+        function initializeElements() {
+            debugEl = document.getElementById('debug');
+            statusEl = document.getElementById('status');  
+            contentEl = document.getElementById('content');
+            
+            if (debugEl && statusEl && contentEl) {
+                log('✅ 所有元素初始化成功');
+                setStatus('success', '✅ 準備完成，請點擊按鈕測試');
+                return true;
+            }
+            return false;
+        }
+        
+        function log(message) {
+            console.log(message);
+            if (debugEl) {
+                const time = new Date().toLocaleTimeString();
+                debugEl.innerHTML += `<div>[${time}] ${message}</div>`;
+                debugEl.scrollTop = debugEl.scrollHeight;
+            }
+        }
+        
+        function setStatus(type, message) {
+            if (statusEl) {
+                statusEl.className = `status ${type}`;
+                statusEl.innerHTML = `<span class="emoji">${type === 'success' ? '✅' : type === 'error' ? '❌' : '⏳'}</span>${message}`;
+            }
+            log(`狀態: ${message}`);
+        }
+        
+        // 測試函數
+        function testFunction() {
+            log('🧪 測試按鈕被點擊！');
+            setStatus('success', '🎉 按鈕功能正常！');
+            if (contentEl) {
+                contentEl.value = `🧪 測試成功！\n時間：${new Date().toLocaleString()}\n\n如果你看到這個訊息，表示基本功能都正常運作。\n\n現在可以嘗試點擊「擷取」按鈕來取得網頁內容。`;
+            }
+        }
+        
+        // 擷取內容函數
+        function extractContent() {
+            log('📄 開始擷取內容...');
+            setStatus('loading', '⏳ 正在擷取網頁內容...');
+            
+            try {
+                // 檢查 Chrome API
+                if (typeof chrome === 'undefined') {
+                    throw new Error('Chrome API 不可用');
+                }
+                
+                log('✅ Chrome API 可用');
+                
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (chrome.runtime.lastError) {
+                        log('❌ 分頁查詢錯誤: ' + chrome.runtime.lastError.message);
+                        setStatus('error', '❌ 權限錯誤');
+                        return;
+                    }
+                    
+                    if (!tabs || tabs.length === 0) {
+                        log('❌ 找不到活動分頁');
+                        setStatus('error', '❌ 找不到分頁');
+                        return;
+                    }
+                    
+                    const tab = tabs[0];
+                    log(`📄 找到分頁: ${tab.url}`);
+                    
+                    chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        function: function() {
+                            try {
+                                const title = document.title || '未知標題';
+                                let content = '';
+                                
+                                // 嘗試不同的選擇器
+                                const selectors = ['article', 'main', '.content', '.article-body', '.story-body'];
+                                
+                                for (let selector of selectors) {
+                                    const element = document.querySelector(selector);
+                                    if (element) {
+                                        const text = element.innerText || '';
+                                        if (text.trim().length > 100) {
+                                            content = text.trim();
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (!content) {
+                                    content = document.body.innerText || document.body.textContent || '';
+                                }
+                                
+                                return {
+                                    title: title,
+                                    content: content.substring(0, 3000), // 限制內容長度
+                                    length: content.length,
+                                    url: window.location.href
+                                };
+                            } catch (e) {
+                                return { error: e.message };
+                            }
+                        }
+                    }, function(results) {
+                        if (chrome.runtime.lastError) {
+                            log('❌ 腳本執行錯誤: ' + chrome.runtime.lastError.message);
+                            setStatus('error', '❌ 腳本執行失敗');
+                            return;
+                        }
+                        
+                        if (results && results[0] && results[0].result) {
+                            const data = results[0].result;
+                            
+                            if (data.error) {
+                                log('❌ 內容擷取錯誤: ' + data.error);
+                                setStatus('error', '❌ 內容擷取失敗');
+                                return;
+                            }
+                            
+                            log(`✅ 成功擷取 ${data.length} 字符`);
+                            setStatus('success', `✅ 已擷取 ${data.length} 字符`);
+                            
+                            if (contentEl) {
+                                contentEl.value = `標題：${data.title}\n網址：${data.url}\n長度：${data.length} 字符\n\n--- 內容 ---\n${data.content}`;
+                            }
+                        } else {
+                            log('❌ 無擷取結果');
+                            setStatus('error', '❌ 無法取得內容');
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                log('❌ 擷取失敗: ' + error.message);
+                setStatus('error', '❌ 功能異常: ' + error.message);
+            }
+        }
+        
+        // 儲存函數
+        function saveText() {
+            log('💾 儲存按鈕被點擊');
+            
+            if (!contentEl || !contentEl.value.trim()) {
+                alert('沒有內容可以儲存');
+                return;
+            }
+            
+            try {
+                const text = contentEl.value;
+                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cleanclip-${Date.now()}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                log('✅ 檔案已下載');
+                setStatus('success', '✅ 檔案下載完成');
+            } catch (error) {
+                log('❌ 儲存失敗: ' + error.message);
+                setStatus('error', '❌ 儲存失敗');
+            }
+        }
+        
+        // 初始化
+        setTimeout(function() {
+            if (initializeElements()) {
+                log('🚀 CleanClip 簡化版載入完成');
+            } else {
+                console.error('Elements not found');
+            }
+        }, 100);
+    </script>
+</body>
+</html>
