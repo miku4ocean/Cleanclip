@@ -5,84 +5,81 @@
     <title>CleanClip External</title>
     <style>
         body { 
-            margin: 0; padding: 20px; font-family: Arial, sans-serif; 
-            background: #f5f5f5; line-height: 1.5;
+            margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f8fafc; line-height: 1.6;
         }
         .container { 
-            background: white; padding: 20px; border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: white; padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08); max-width: 100%;
         }
         .title { 
-            font-size: 24px; font-weight: bold; color: #2563eb; 
-            margin-bottom: 20px; text-align: center;
+            font-size: 20px; font-weight: 600; color: #1e40af; 
+            margin-bottom: 16px; text-align: center;
         }
-        .test-area { 
-            background: #fef3c7; padding: 15px; border-radius: 5px; 
-            margin: 15px 0; border-left: 4px solid #f59e0b;
+        .intro { 
+            background: #f0f9ff; padding: 12px; border-radius: 8px; 
+            margin: 16px 0; border-left: 3px solid #3b82f6; font-size: 14px;
         }
+        .actions {
+            display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap;
+        }
+        .actions button {
+            flex: 1; min-width: 120px; padding: 10px 16px; border: none; 
+            border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn-extract { background: #059669; color: white; }
+        .btn-extract:hover { background: #047857; transform: translateY(-1px); }
+        .btn-save { background: #0ea5e9; color: white; }
+        .btn-save:hover { background: #0284c7; transform: translateY(-1px); }
+        .btn-clear { background: #dc2626; color: white; }
+        .btn-clear:hover { background: #b91c1c; transform: translateY(-1px); }
         .result { 
-            background: #f0f9ff; padding: 15px; border-radius: 5px; 
-            border-left: 4px solid #0ea5e9; min-height: 100px; margin: 15px 0;
+            background: #f0f9ff; padding: 12px; border-radius: 6px; 
+            border-left: 3px solid #0ea5e9; margin: 16px 0; min-height: auto;
+            font-size: 14px;
         }
-        button { 
-            display: block; width: 100%; padding: 12px; margin: 8px 0; 
-            background: #2563eb; color: white; border: none; border-radius: 5px; 
-            cursor: pointer; font-size: 16px; transition: all 0.2s ease;
+        .content-section {
+            margin: 16px 0;
         }
-        button:hover { background: #1d4ed8; transform: translateY(-1px); }
-        button:active { background: #1e40af; transform: translateY(0); }
-        button.success { background: #059669; }
-        button.success:hover { background: #047857; }
-        button.warning { background: #d97706; }
-        button.warning:hover { background: #b45309; }
+        .section-label {
+            display: block; font-weight: 600; color: #374151; margin-bottom: 8px;
+            font-size: 14px;
+        }
         textarea { 
-            width: 100%; height: 150px; padding: 12px; border: 1px solid #d1d5db; 
-            border-radius: 5px; font-family: 'Monaco', 'Menlo', monospace; 
+            width: 100%; height: 320px; padding: 12px; border: 2px solid #e5e7eb; 
+            border-radius: 8px; font-family: 'SF Mono', 'Monaco', 'Menlo', monospace; 
             font-size: 13px; resize: vertical; box-sizing: border-box;
+            transition: border-color 0.2s ease;
         }
-        .section {
-            margin: 20px 0; padding: 15px; border-radius: 8px; 
-            border: 1px solid #e5e7eb;
-        }
-        .section h3 {
-            margin-top: 0; color: #374151; font-size: 18px;
+        textarea:focus {
+            outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="title">🔧 CleanClip 外部腳本版本</div>
+        <div class="title">📄 CleanClip 內容擷取工具</div>
         
-        <div class="test-area">
-            <strong>🎯 CSP 相容測試</strong><br>
-            這個版本使用外部 JavaScript 檔案，符合 Content Security Policy 要求。
-            <br><strong>如果按鈕有反應，表示問題已解決！</strong>
+        <div class="intro">
+            <strong>📄 CleanClip 內容擷取工具</strong><br>
+            智能識別並擷取網頁主要內容，支援 Facebook、Instagram、Twitter 等平台。
         </div>
         
-        <div class="section">
-            <h3>📋 基本功能測試</h3>
-            <button id="testJSBtn">🧪 測試 JavaScript</button>
-            <button id="testAlertBtn">🔔 測試 Alert</button>
-            <button id="testConsoleBtn">📝 測試 Console</button>
-            <button id="testDOMBtn">🎯 測試 DOM 操作</button>
-        </div>
-        
-        <div class="section">
-            <h3>📄 內容擷取功能</h3>
-            <button id="extractBtn" class="success">📄 擷取網頁內容</button>
-            <button id="saveBtn" class="success">💾 儲存內容</button>
+        <div class="actions">
+            <button id="extractBtn" class="btn-extract">📄 擷取網頁內容</button>
+            <button id="saveBtn" class="btn-save">💾 儲存內容</button>
+            <button id="clearBtn" class="btn-clear">🗑️ 清空內容</button>
         </div>
         
         <div class="result">
-            <div id="output">⏳ 載入中...</div>
+            <div id="output">點擊「擷取網頁內容」開始使用</div>
         </div>
         
-        <div class="section">
-            <h3>📝 內容區域</h3>
-            <textarea id="textarea" placeholder="擷取的內容或測試輸出將顯示在這裡..."></textarea>
+        <div class="content-section">
+            <label class="section-label">📝 內容區域</label>
+            <textarea id="textarea" placeholder="擷取的內容將顯示在這裡...&#10;&#10;支援平台：&#10;• 新聞網站（中央社、天下雜誌、數位時代等）&#10;• Facebook 貼文&#10;• Instagram 貼文&#10;• Twitter/X 推文&#10;• 其他一般網站"></textarea>
         </div>
-        
-        <button id="clearBtn" class="warning">🗑️ 清空所有內容</button>
     </div>
 
     <!-- 外部腳本載入 - 符合 CSP 要求 -->

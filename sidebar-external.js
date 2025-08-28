@@ -19,23 +19,14 @@ if (document.readyState === 'loading') {
 function initializeCleanClip() {
     console.log('🔧 Initializing CleanClip...');
     
-    // 獲取所有元素
-    const testJSBtn = document.getElementById('testJSBtn');
-    const testAlertBtn = document.getElementById('testAlertBtn');
-    const testConsoleBtn = document.getElementById('testConsoleBtn');
-    const testDOMBtn = document.getElementById('testDOMBtn');
+    // 獲取元素
     const clearBtn = document.getElementById('clearBtn');
     const extractBtn = document.getElementById('extractBtn');
     const saveBtn = document.getElementById('saveBtn');
-    
     const outputDiv = document.getElementById('output');
     const textarea = document.getElementById('textarea');
     
     console.log('🎯 Elements found:', {
-        testJSBtn: !!testJSBtn,
-        testAlertBtn: !!testAlertBtn,
-        testConsoleBtn: !!testConsoleBtn,
-        testDOMBtn: !!testDOMBtn,
         clearBtn: !!clearBtn,
         extractBtn: !!extractBtn,
         saveBtn: !!saveBtn,
@@ -44,34 +35,6 @@ function initializeCleanClip() {
     });
     
     // 設置事件監聽器
-    if (testJSBtn) {
-        testJSBtn.addEventListener('click', function() {
-            console.log('🧪 Test JS button clicked!');
-            testJS();
-        });
-    }
-    
-    if (testAlertBtn) {
-        testAlertBtn.addEventListener('click', function() {
-            console.log('🔔 Test Alert button clicked!');
-            testAlert();
-        });
-    }
-    
-    if (testConsoleBtn) {
-        testConsoleBtn.addEventListener('click', function() {
-            console.log('📝 Test Console button clicked!');
-            testConsole();
-        });
-    }
-    
-    if (testDOMBtn) {
-        testDOMBtn.addEventListener('click', function() {
-            console.log('🎯 Test DOM button clicked!');
-            testDOM();
-        });
-    }
-    
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
             console.log('🗑️ Clear button clicked!');
@@ -95,79 +58,12 @@ function initializeCleanClip() {
     
     // 初始化完成訊息
     if (outputDiv) {
-        outputDiv.innerHTML = '🟢 CleanClip 外部腳本載入完成！<br>所有事件監聽器已設置，請測試按鈕功能。';
+        outputDiv.innerHTML = '✅ CleanClip 準備就緒！點擊「擷取網頁內容」開始使用。';
     }
     
     console.log('✅ CleanClip initialization completed');
-    
-    // Chrome 環境檢查
-    setTimeout(checkChromeEnvironment, 1000);
 }
 
-function testJS() {
-    console.log('🧪 JavaScript test function called');
-    const outputDiv = document.getElementById('output');
-    const textarea = document.getElementById('textarea');
-    
-    if (outputDiv) {
-        outputDiv.innerHTML = '✅ JavaScript 完全正常！<br>' +
-            '⏰ 時間：' + new Date().toLocaleString() + '<br>' +
-            '🎉 外部腳本事件處理成功！';
-    }
-    
-    if (textarea) {
-        textarea.value = 'JavaScript 測試成功！\n\n' +
-            '✅ 外部腳本載入正常\n' +
-            '✅ 事件監聽器工作正常\n' +
-            '✅ DOM 操作功能正常\n\n' +
-            '時間：' + new Date().toLocaleString();
-    }
-}
-
-function testAlert() {
-    console.log('🔔 Alert test function called');
-    try {
-        alert('🎉 Alert 功能正常！\n\n這個彈窗證明 JavaScript 事件處理完全正常。\n\n外部腳本載入成功！');
-        
-        const outputDiv = document.getElementById('output');
-        if (outputDiv) {
-            outputDiv.innerHTML += '<br>✅ Alert 測試完成 - 彈窗顯示正常';
-        }
-    } catch (error) {
-        console.error('Alert error:', error);
-    }
-}
-
-function testConsole() {
-    console.log('🔥 Console 測試成功！外部腳本的 console.log 正常運作。');
-    console.warn('⚠️ 這是一個警告訊息測試（外部腳本）');
-    console.error('❌ 這是一個錯誤訊息測試（外部腳本，非真實錯誤）');
-    
-    const outputDiv = document.getElementById('output');
-    if (outputDiv) {
-        outputDiv.innerHTML += '<br>✅ Console 訊息已輸出，請檢查開發者工具的 Console 標籤';
-    }
-}
-
-function testDOM() {
-    console.log('🎯 DOM test function called');
-    const outputDiv = document.getElementById('output');
-    const textarea = document.getElementById('textarea');
-    
-    if (outputDiv) {
-        outputDiv.innerHTML += '<br>🎯 DOM 操作測試結果：';
-        outputDiv.innerHTML += '<br>- 找到 output 元素：' + (outputDiv ? '✅' : '❌');
-        outputDiv.innerHTML += '<br>- 找到 textarea 元素：' + (textarea ? '✅' : '❌');
-        outputDiv.innerHTML += '<br>- 當前時間：' + new Date().toLocaleTimeString();
-        outputDiv.innerHTML += '<br>- 外部腳本 DOM 操作：✅ 成功';
-    }
-    
-    if (textarea) {
-        textarea.value += '\n\nDOM 操作測試完成！\n' +
-            '所有元素都能正常存取和修改。\n' +
-            '外部腳本運作完全正常。';
-    }
-}
 
 function clearAll() {
     console.log('🗑️ Clear function called');
@@ -348,28 +244,59 @@ function extractContent() {
                 
                 // Instagram 擷取策略
                 function extractInstagramContent() {
+                    console.log('🔍 Instagram content extraction started');
+                    
                     const selectors = [
+                        // Instagram 貼文內容選擇器
+                        'article div[style*="line-height"] span',
+                        'article span[style*="line-height"]',
+                        'div[role="button"] + div span',
+                        'time ~ div span',
                         'article h1',
-                        'article span',
-                        'div[role="button"] + span',
-                        'time ~ div span'
+                        'article span[dir="auto"]',
+                        'div[data-testid] span',
+                        // 更廣泛的搜尋
+                        'article div span',
+                        'main article span',
+                        '[role="main"] span',
+                        // 備用選擇器
+                        'span[style*="word-wrap"]',
+                        'div[style*="white-space"] span'
                     ];
                     
+                    let bestContent = '';
+                    let usedSelector = '';
+                    let allTexts = [];
+                    
                     for (let selector of selectors) {
-                        const element = document.querySelector(selector);
-                        if (element) {
+                        const elements = document.querySelectorAll(selector);
+                        console.log(`Trying Instagram selector: ${selector}, found ${elements.length} elements`);
+                        
+                        for (let element of elements) {
                             const text = element.innerText || element.textContent || '';
-                            if (text.trim().length > 10) {
-                                return {
-                                    content: text.trim(),
-                                    selector: selector,
-                                    debug: []
-                                };
+                            if (text && text.trim().length > 15 && !text.includes('點讚') && !text.includes('留言')) {
+                                allTexts.push({
+                                    text: text.trim(),
+                                    length: text.trim().length,
+                                    selector: selector
+                                });
+                                
+                                if (text.trim().length > bestContent.length) {
+                                    bestContent = text.trim();
+                                    usedSelector = selector;
+                                }
                             }
                         }
+                        
+                        if (bestContent.length > 50) break;
                     }
                     
-                    return { content: '', selector: 'none', debug: [] };
+                    console.log(`Instagram extraction result: ${bestContent.length} characters using ${usedSelector}`);
+                    return {
+                        content: bestContent,
+                        selector: usedSelector,
+                        debug: allTexts.slice(0, 3)
+                    };
                 }
                 
                 // Twitter 擷取策略
@@ -399,39 +326,111 @@ function extractContent() {
                 
                 // 一般網站擷取策略
                 function extractGeneralContent() {
+                    console.log('🔍 General content extraction started');
+                    
                     const selectors = [
+                        // 新聞網站主要內容選擇器
                         'article',
+                        'main article',
+                        '[role="main"] article',
                         'main',
                         '[role="main"]',
+                        // 特定新聞網站選擇器
                         '.story-body',
                         '.article-body',
+                        '.article-content',
                         '.news-content',
                         '.post-content',
                         '.entry-content',
+                        '.content-body',
+                        '.main-content',
+                        // 數位時代等特殊選擇器
+                        '.post-body',
+                        '.article-text',
+                        '.content-text',
+                        '.article-detail',
+                        // 通用選擇器
                         '.content',
-                        '#content'
+                        '#content',
+                        '#main-content',
+                        // ID 選擇器
+                        '#article-content',
+                        '#post-content'
                     ];
+                    
+                    let bestContent = '';
+                    let usedSelector = '';
+                    let allTexts = [];
                     
                     for (let selector of selectors) {
                         const element = document.querySelector(selector);
                         if (element) {
-                            const text = element.innerText || element.textContent || '';
-                            if (text.trim().length > 100) {
-                                return {
-                                    content: text.trim(),
-                                    selector: selector,
-                                    debug: []
-                                };
+                            // 移除不必要的元素
+                            const clonedElement = element.cloneNode(true);
+                            const unwantedSelectors = [
+                                'nav', 'header', 'footer', 'aside', '.sidebar',
+                                '.advertisement', '.ad', '.social-share',
+                                '.related-articles', '.comments', '.comment-section'
+                            ];
+                            
+                            unwantedSelectors.forEach(unwanted => {
+                                const unwantedElements = clonedElement.querySelectorAll(unwanted);
+                                unwantedElements.forEach(el => el.remove());
+                            });
+                            
+                            const text = clonedElement.innerText || clonedElement.textContent || '';
+                            const cleanText = text.trim().replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n');
+                            
+                            console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
+                            
+                            if (cleanText.length > 100) {
+                                allTexts.push({
+                                    text: cleanText,
+                                    length: cleanText.length,
+                                    selector: selector
+                                });
+                                
+                                if (cleanText.length > bestContent.length) {
+                                    bestContent = cleanText;
+                                    usedSelector = selector;
+                                }
                             }
+                        }
+                        
+                        // 如果找到足夠長的內容就停止
+                        if (bestContent.length > 500) break;
+                    }
+                    
+                    // 如果還是沒找到好內容，使用 body 但清理掉導航等元素
+                    if (bestContent.length < 200) {
+                        console.log('🔄 Fallback: using cleaned body content');
+                        const bodyClone = document.body.cloneNode(true);
+                        const unwantedSelectors = [
+                            'nav', 'header', 'footer', 'aside', '.sidebar', '.menu',
+                            '.advertisement', '.ad', '.social-share', '.navbar',
+                            '.related-articles', '.comments', '.comment-section',
+                            'script', 'style', 'noscript'
+                        ];
+                        
+                        unwantedSelectors.forEach(unwanted => {
+                            const unwantedElements = bodyClone.querySelectorAll(unwanted);
+                            unwantedElements.forEach(el => el.remove());
+                        });
+                        
+                        const bodyText = bodyClone.innerText || bodyClone.textContent || '';
+                        const cleanBodyText = bodyText.trim().replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n');
+                        
+                        if (cleanBodyText.length > bestContent.length) {
+                            bestContent = cleanBodyText;
+                            usedSelector = 'body (cleaned)';
                         }
                     }
                     
-                    // 最後備案：使用 body
-                    const bodyText = document.body.innerText || document.body.textContent || '';
+                    console.log(`General extraction result: ${bestContent.length} characters using ${usedSelector}`);
                     return {
-                        content: bodyText.trim(),
-                        selector: 'body',
-                        debug: []
+                        content: bestContent,
+                        selector: usedSelector,
+                        debug: allTexts.slice(0, 3)
                     };
                 }
                 
@@ -440,7 +439,7 @@ function extractContent() {
                 
                 return {
                     title: title,
-                    content: result.content.substring(0, 3000), // 增加字數限制
+                    content: result.content.substring(0, 8000), // 大幅增加字數限制
                     length: result.content.length,
                     selector: result.selector,
                     url: url,
@@ -526,10 +525,3 @@ function saveContent() {
     }
 }
 
-function checkChromeEnvironment() {
-    console.log('🔍 Chrome 擴充功能環境檢查：');
-    console.log('- chrome 物件：', typeof chrome !== 'undefined' ? '✅ 可用' : '❌ 不可用');
-    console.log('- chrome.tabs：', typeof chrome !== 'undefined' && chrome.tabs ? '✅ 可用' : '❌ 不可用');
-    console.log('- chrome.scripting：', typeof chrome !== 'undefined' && chrome.scripting ? '✅ 可用' : '❌ 不可用');
-    console.log('- 當前網址：', window.location.href);
-}
