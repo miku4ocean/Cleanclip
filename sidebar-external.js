@@ -387,14 +387,20 @@ function performExtraction() {
                 function universalContentCleaning(element) {
                     const clonedElement = element.cloneNode(true);
                     
-                    // 1. CSS 選擇器過濾（保守策略，只移除明確的非內容元素）
+                    // 1. CSS 選擇器過濾（加強版 - 針對台灣新聞網站）
                     const universalUnwantedSelectors = [
                         // 導航和結構（安全移除）
                         'nav', 'header', 'footer', 'aside', '.sidebar', '.menu', '.navbar',
-                        // 廣告相關（明確標識）
+                        // 廣告相關（明確標識）- 加強版
                         '.advertisement', '.adsbygoogle', '.google-auto-placed',
                         '[data-ad-client]', '[data-ad-slot]', '.adsystem', 
                         '.ad-container', '.ad-wrapper', '.ad-banner', '.ad-block',
+                        // 聯合報特殊廣告選擇器
+                        '.story-ad', '.story-list-ad', '.news-ad', '.inline-ad',
+                        '.native-ad', '.promoted-content', '.sponsor-content',
+                        // 更多廣告變形
+                        '[class*="ad-"]', '[id*="ad-"]', '[class*="ads"]', '[id*="ads"]',
+                        '.dfp-ad', '.banner-ad', '.text-ad', '.display-ad',
                         // 訂閱相關（明確標識）
                         '.newsletter-signup', '.subscription-box', '.email-signup', 
                         '.signup-form', '.subscribe-form',
@@ -570,7 +576,7 @@ function performExtraction() {
                 
                 // 廣告內容檢測函數（增強版 - 上下文感知）
                 function isAdvertisementContent(text, element) {
-                    if (!text || text.length > 100) return false;
+                    if (!text || text.length > 200) return false;  // 增加長度限制
                     
                     const textTrimmed = text.trim();
                     
@@ -580,25 +586,53 @@ function performExtraction() {
                         return false;
                     }
                     
-                    // 只檢測明確的廣告標示（完全匹配）
+                    // 元素類別和ID檢查 - 針對廣告元素
+                    if (element) {
+                        const className = element.className || '';
+                        const elementId = element.id || '';
+                        
+                        // 檢查廣告相關的class和id
+                        const adElementPatterns = [
+                            /ad[-_]/i, /[-_]ad/i, /ads/i, /advertisement/i,
+                            /sponsor/i, /promote/i, /native[-_]?ad/i,
+                            /banner/i, /dfp/i, /adsystem/i
+                        ];
+                        
+                        if (adElementPatterns.some(pattern => 
+                            pattern.test(className) || pattern.test(elementId))) {
+                            return true;
+                        }
+                    }
+                    
+                    // 完全匹配的廣告標示（擴展版）
                     const exactAdMatches = [
-                        '廣告', 'Advertisement', 'ADVERTISEMENT', 'AD',
-                        '贊助內容', 'Sponsored Content', 'SPONSORED',
-                        '推廣內容', 'Promoted Content'
+                        '廣告', 'Advertisement', 'ADVERTISEMENT', 'AD', 'ad',
+                        '贊助內容', 'Sponsored Content', 'SPONSORED', 'Sponsored',
+                        '推廣內容', 'Promoted Content', 'PROMOTED',
+                        '相關廣告', '推薦廣告', '廣告區', 'AD AREA'
                     ];
                     
                     // 檢測完全匹配
                     if (exactAdMatches.includes(textTrimmed)) return true;
                     
-                    // 檢測明確的廣告模式（更嚴格）
-                    const strictAdPatterns = [
+                    // 廣告模式檢測（加強版）
+                    const adPatterns = [
                         /^廣告$/,
                         /^贊助內容$/,
                         /^sponsored$/i,
-                        /^advertisement$/i
+                        /^advertisement$/i,
+                        /廣告區/,
+                        /推薦廣告/,
+                        /相關廣告/,
+                        // 聯合報特有廣告模式
+                        /看更多.*內容/,
+                        /立即購買|立即訂閱/,
+                        /點擊查看|點擊了解/,
+                        // 常見廣告call to action
+                        /免費試用|立即下載|馬上體驗/
                     ];
                     
-                    return strictAdPatterns.some(pattern => pattern.test(textTrimmed));
+                    return adPatterns.some(pattern => pattern.test(textTrimmed));
                 }
                 
                 // 圖片說明檢測函數（智能策略 - 保留有實質內容的說明）
@@ -847,20 +881,29 @@ function performExtraction() {
                             '[data-testid="article-content"]'
                         ];
                     } else if (url.includes('cna.com.tw')) {
-                        // 中央社 - 2025年更新版選擇器
-                        selectors = [
-                            '.centralContent',     // 主要內容容器
-                            '.pageContent',        // 文章內容容器
-                            '.paragraph',          // 段落容器
-                            'article',             // 標準文章標籤
-                            '.article-content',    // 備用選擇器
-                            '.article-body',
-                            '.news-content',
-                            '#news-content',
-                            '.story-body',
-                            'main',                // 主要內容區域
-                            '[role="main"]'        // 語義化主要內容
-                        ];
+                        // 中央社 - 2025年更新版選擇器（針對單篇文章）
+                        // 針對具體文章頁面，避免抓取滾動式多篇文章
+                        if (url.includes('/news/')) {
+                            // 針對特定新聞文章頁面
+                            selectors = [
+                                'article.article',     // 具體文章容器
+                                '.article-wrap',       // 文章包裝器
+                                '.centralContent .pageContent',  // 組合選擇器
+                                '.pageContent',        // 文章內容容器
+                                '.centralContent',     // 主要內容容器
+                                '.paragraph',          // 段落容器
+                                'main article'         // 主文章區域
+                            ];
+                        } else {
+                            // 一般頁面選擇器
+                            selectors = [
+                                '.centralContent',     // 主要內容容器
+                                '.pageContent',        // 文章內容容器
+                                'article',             // 標準文章標籤
+                                'main',                // 主要內容區域
+                                '[role="main"]'        // 語義化主要內容
+                            ];
+                        }
                     }
                     
                     // 通用台灣新聞選擇器
