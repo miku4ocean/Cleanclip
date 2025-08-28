@@ -1,6 +1,9 @@
 // CleanClip External JavaScript - CSP Compliant Version
 console.log('🚀 CleanClip External Script Loading...');
 
+// 全域變數來追蹤擷取狀態
+let isExtracting = false;
+
 // 等待 DOM 載入完成
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📋 DOM Content Loaded');
@@ -70,17 +73,32 @@ function clearAll() {
     const outputDiv = document.getElementById('output');
     const textarea = document.getElementById('textarea');
     
+    // 重置擷取狀態
+    isExtracting = false;
+    
     if (outputDiv) {
-        outputDiv.innerHTML = '🗑️ 結果已清空，等待新的測試...';
+        outputDiv.innerHTML = '✅ 內容已清空，可以擷取新的網頁內容';
     }
     
     if (textarea) {
         textarea.value = '';
     }
+    
+    console.log('🔄 State reset completed, ready for new extraction');
 }
 
 function extractContent() {
     console.log('📄 Extract content function called');
+    
+    // 檢查是否正在擷取中
+    if (isExtracting) {
+        console.log('⚠️ Already extracting, ignoring duplicate request');
+        return;
+    }
+    
+    // 設置擷取狀態
+    isExtracting = true;
+    
     const outputDiv = document.getElementById('output');
     const textarea = document.getElementById('textarea');
     
@@ -90,6 +108,7 @@ function extractContent() {
     
     // 檢查 Chrome API
     if (typeof chrome === 'undefined') {
+        isExtracting = false; // 重置狀態
         if (outputDiv) {
             outputDiv.innerHTML = '❌ Chrome API 不可用';
         }
@@ -100,6 +119,7 @@ function extractContent() {
     
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         if (chrome.runtime.lastError) {
+            isExtracting = false; // 重置狀態
             console.error('Tab query error:', chrome.runtime.lastError);
             if (outputDiv) {
                 outputDiv.innerHTML = '❌ 權限錯誤：' + chrome.runtime.lastError.message;
@@ -108,6 +128,7 @@ function extractContent() {
         }
         
         if (!tabs || !tabs[0]) {
+            isExtracting = false; // 重置狀態
             if (outputDiv) {
                 outputDiv.innerHTML = '❌ 找不到活動分頁';
             }
@@ -118,6 +139,7 @@ function extractContent() {
         console.log('📄 Found active tab:', tab.url);
         
         if (tab.url.startsWith('chrome://')) {
+            isExtracting = false; // 重置狀態
             if (outputDiv) {
                 outputDiv.innerHTML = '❌ 無法在 Chrome 內建頁面擷取內容';
             }
@@ -379,7 +401,8 @@ function extractContent() {
                             });
                             
                             const text = clonedElement.innerText || clonedElement.textContent || '';
-                            const cleanText = text.trim().replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n');
+                            // 保留段落結構，只清理過多的空行
+                            const cleanText = text.trim().replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ');
                             
                             console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
                             
@@ -418,7 +441,7 @@ function extractContent() {
                         });
                         
                         const bodyText = bodyClone.innerText || bodyClone.textContent || '';
-                        const cleanBodyText = bodyText.trim().replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n');
+                        const cleanBodyText = bodyText.trim().replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ');
                         
                         if (cleanBodyText.length > bestContent.length) {
                             bestContent = cleanBodyText;
@@ -450,6 +473,8 @@ function extractContent() {
                 };
             }
         }).then(function(results) {
+            isExtracting = false; // 重置狀態
+            
             if (results && results[0] && results[0].result) {
                 const data = results[0].result;
                 console.log('✅ Content extracted:', data);
@@ -482,6 +507,7 @@ function extractContent() {
                 }
             }
         }).catch(function(error) {
+            isExtracting = false; // 重置狀態
             console.error('Script execution error:', error);
             if (outputDiv) {
                 outputDiv.innerHTML = '❌ 腳本執行失敗：' + error.message;
