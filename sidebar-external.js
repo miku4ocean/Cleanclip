@@ -414,14 +414,14 @@ function performExtraction() {
                         const text = el.textContent || '';
                         const textLower = text.toLowerCase().trim();
                         
-                        // 廣告內容檢測
-                        if (isAdvertisementContent(text)) {
+                        // 廣告內容檢測（增強版 - 考慮上下文）
+                        if (isAdvertisementContent(text, el)) {
                             el.remove();
                             return;
                         }
                         
-                        // 圖片說明檢測
-                        if (isImageCaptionContent(text)) {
+                        // 圖片說明檢測（智慧版 - 保留有內容的說明）
+                        if (isImageCaptionContent(text, el)) {
                             el.remove();
                             return;
                         }
@@ -436,11 +436,137 @@ function performExtraction() {
                     return clonedElement;
                 }
                 
-                // 廣告內容檢測函數（更保守的策略）
-                function isAdvertisementContent(text) {
-                    if (!text || text.length > 100) return false; // 只檢測短文本
+                // 動態閾值調整函數（基於平台和內容類型）
+                function getContentThreshold(platformType, contentType) {
+                    // 根據平台調整
+                    if (platformType === 'twitter') return 10; // Twitter短推文
+                    if (platformType === 'instagram' && contentType === 'caption') return 20;
+                    if (platformType === 'facebook' && contentType === 'post') return 15;
+                    
+                    // 根據內容類型調整
+                    if (contentType === 'financial') return 5; // 財務數據可以很短
+                    if (contentType === 'news_alert') return 8; // 突發新聞
+                    if (contentType === 'quote') return 12; // 專家引言
+                    if (contentType === 'headline') return 6; // 新聞標題
+                    
+                    return 30; // 預設閾值
+                }
+                
+                // 平台類型檢測函數
+                function detectPlatformType() {
+                    const hostname = window.location.hostname.toLowerCase();
+                    const url = window.location.href.toLowerCase();
+                    
+                    if (hostname.includes('facebook.com') || hostname.includes('fb.com')) return 'facebook';
+                    if (hostname.includes('instagram.com')) return 'instagram';
+                    if (hostname.includes('twitter.com') || hostname.includes('t.co')) return 'twitter';
+                    if (hostname.includes('linkedin.com')) return 'linkedin';
+                    if (hostname.includes('bnext.com') || hostname.includes('businessweekly.com') || 
+                        hostname.includes('cw.com.tw') || hostname.includes('udn.com') ||
+                        hostname.includes('chinatimes.com') || hostname.includes('ltn.com.tw')) return 'taiwan_news';
+                    if (hostname.includes('techcrunch.com') || hostname.includes('theverge.com') || 
+                        hostname.includes('wired.com')) return 'tech_news';
+                    if (hostname.includes('reuters.com') || hostname.includes('bloomberg.com') ||
+                        hostname.includes('wsj.com') || hostname.includes('ft.com')) return 'financial_news';
+                    if (hostname.includes('medium.com') || hostname.includes('substack.com')) return 'blog_platform';
+                    
+                    return 'general';
+                }
+                
+                // 檢測合法重要短內容（保護財務數據、專家引言等）
+                function isLegitimateShortContent(text, element) {
+                    if (!text) return false;
+                    
+                    const platformType = detectPlatformType();
+                    const maxLength = platformType === 'twitter' ? 280 : 200; // Twitter特殊處理
+                    if (text.length > maxLength) return false;
                     
                     const textTrimmed = text.trim();
+                    
+                    // 財務數據模式（台灣 + 國際）
+                    const financialPatterns = [
+                        // 台股相關
+                        /\d+億|\d+萬|營收|獲利|成長\d+%|下跌\d+%/,
+                        /股價|市值|EPS|本益比|殖利率|股息/,
+                        /台積電|鴻海|聯發科|台塑|中鋼|大立光|聯電|日月光/,
+                        // 國際股市
+                        /S&P|Nasdaq|FTSE|Dow Jones|NYSE|TSE/i,
+                        /Apple|Microsoft|Google|Tesla|Amazon|Meta/i,
+                        // 經濟指標
+                        /GDP|CPI|通膨|利率|匯率|Fed|央行/,
+                        // 加密貨幣
+                        /Bitcoin|Ethereum|BTC|ETH|cryptocurrency/i,
+                        // ESG投資
+                        /ESG|永續|綠能|碳中和|renewable/i
+                    ];
+                    
+                    // 專家引言模式（更全面）
+                    const expertQuotePatterns = [
+                        // 台灣高層
+                        /執行長|總經理|董事長|分析師|研究員.*表示/,
+                        /專家.*指出|學者.*認為|業界.*預期/,
+                        // 國際權威
+                        /CEO|CFO|CTO.*said|analyst.*noted/i,
+                        /expert.*believes|researcher.*found/i,
+                        // 調查研究
+                        /調查顯示|統計指出|研究發現|數據顯示/,
+                        /survey shows|study found|data indicates/i,
+                        // 機構報告
+                        /根據.*報告|.*機構指出|.*銀行認為/,
+                        /according to.*report|.*institute says/i
+                    ];
+                    
+                    // 重要結論模式
+                    const conclusionPatterns = [
+                        /總結|結論|關鍵.*在於|重點.*為/,
+                        /預測|展望|預期.*將|未來.*可能/,
+                        /conclusion|summary|key.*point|outlook/i,
+                        /forecast|expect.*to|future.*may/i
+                    ];
+                    
+                    // 新聞重點模式
+                    const newsHighlightPatterns = [
+                        /突發|緊急|重大|獨家|最新消息/,
+                        /breaking|urgent|exclusive|latest/i,
+                        /快訊|即時|更新|live/i
+                    ];
+                    
+                    // 檢查元素上下文
+                    if (element) {
+                        const contextClasses = (element.className || '').toLowerCase();
+                        const parentClasses = (element.parentElement?.className || '').toLowerCase();
+                        const allClasses = contextClasses + ' ' + parentClasses;
+                        
+                        // 引言框、重點框、數據框
+                        if (allClasses.match(/quote|highlight|callout|important|emphasis|blockquote|pullquote|sidebar|infobox|databox|factbox/)) {
+                            console.log(`Preserving contextual content: "${text}"`);
+                            return true;
+                        }
+                        
+                        // 標題類元素
+                        if (['H1','H2','H3','H4','H5','H6'].includes(element.tagName)) {
+                            return true;
+                        }
+                    }
+                    
+                    // 模式匹配檢查
+                    return financialPatterns.some(pattern => pattern.test(textTrimmed)) ||
+                           expertQuotePatterns.some(pattern => pattern.test(textTrimmed)) ||
+                           conclusionPatterns.some(pattern => pattern.test(textTrimmed)) ||
+                           newsHighlightPatterns.some(pattern => pattern.test(textTrimmed));
+                }
+                
+                // 廣告內容檢測函數（增強版 - 上下文感知）
+                function isAdvertisementContent(text, element) {
+                    if (!text || text.length > 100) return false;
+                    
+                    const textTrimmed = text.trim();
+                    
+                    // 先檢查是否為合法重要內容
+                    if (isLegitimateShortContent(text, element)) {
+                        console.log(`Preserving important content: "${text}"`);
+                        return false;
+                    }
                     
                     // 只檢測明確的廣告標示（完全匹配）
                     const exactAdMatches = [
@@ -463,11 +589,17 @@ function performExtraction() {
                     return strictAdPatterns.some(pattern => pattern.test(textTrimmed));
                 }
                 
-                // 圖片說明檢測函數（更精確的策略）
-                function isImageCaptionContent(text) {
-                    if (!text || text.length > 80) return false; // 只檢測短文本圖片說明
+                // 圖片說明檢測函數（智能策略 - 保留有實質內容的說明）
+                function isImageCaptionContent(text, element) {
+                    if (!text || text.length > 80) return false;
                     
                     const textTrimmed = text.trim();
+                    
+                    // 檢查是否為重要內容（即使看起來像圖片說明）
+                    if (isLegitimateShortContent(text, element)) {
+                        console.log(`Preserving important caption content: "${text}"`);
+                        return false;
+                    }
                     
                     // 明確的圖片說明標示（精確匹配）
                     const captionPatterns = [
@@ -477,17 +609,25 @@ function performExtraction() {
                         /^資料來源[:：].*Getty/i,
                         /^資料來源[:：].*Shutterstock/i,
                         /^資料來源[:：].*Reuters/i,
-                        /^攝影[:：]/,
-                        // 英文圖片說明模式（更精確）
-                        /^Photo credit[:：]/i,
-                        /^Image source[:：]/i,
-                        /^Source[:：].*Getty/i,
-                        /^Source[:：].*Shutterstock/i,
-                        /^Courtesy of/i,
-                        /^Photographer[:：]/i
+                        /^攝影[:：]/
                     ];
                     
-                    // 完全匹配的圖片來源
+                    // 檢查是否有實質內容（除了來源標記之外）
+                    let hasSubstantialContent = false;
+                    captionPatterns.forEach(pattern => {
+                        const match = textTrimmed.match(pattern);
+                        if (match) {
+                            const contentAfterSource = textTrimmed.replace(pattern, '').trim();
+                            if (contentAfterSource.length > 30) {
+                                hasSubstantialContent = true;
+                                console.log(`Preserving caption with substantial content: "${text}"`);
+                            }
+                        }
+                    });
+                    
+                    if (hasSubstantialContent) return false;
+                    
+                    // 完全匹配的純圖片來源（無實質內容）
                     const exactCaptionMatches = [
                         'Getty Images', 'Shutterstock', 'Reuters',
                         '路透社', '美聯社', 'AP Photo'
