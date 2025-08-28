@@ -28,6 +28,9 @@ function CleanClipSidebar() {
     initializePDFExporter();
     initializeTextProcessor();
     
+    // Auto-trigger content extraction when popup opens
+    triggerContentExtraction();
+    
     const messageListener = (message) => {
       if (message.type === 'CONTENT_READY') {
         handleContentExtracted(message.data);
@@ -40,6 +43,48 @@ function CleanClipSidebar() {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
   }, []);
+
+  const triggerContentExtraction = async () => {
+    try {
+      setStatus('loading');
+      setStatusMessage('開始擷取內容...');
+      
+      // Get current active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (tab) {
+        // Send message to content script
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'EXTRACT_CONTENT'
+        }).catch(async (error) => {
+          console.error('Content script not ready, injecting...', error);
+          
+          // Inject content scripts if not loaded
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['lib/readability.js', 'lib/smart-extractor.js', 'content-script.js']
+            });
+            
+            // Wait a bit then retry
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tab.id, {
+                type: 'EXTRACT_CONTENT'
+              });
+            }, 500);
+          } catch (injectError) {
+            console.error('Failed to inject content script:', injectError);
+            setStatus('error');
+            setStatusMessage('無法載入內容擷取腳本，請重新整理頁面後再試');
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to trigger extraction:', error);
+      setStatus('error');
+      setStatusMessage('無法開始內容擷取，請檢查權限設定');
+    }
+  };
 
   const initializePDFExporter = async () => {
     try {
@@ -299,12 +344,7 @@ function CleanClipSidebar() {
     setStatusMessage('重新嘗試擷取內容...');
     setCanRetry(false);
     
-    // Send retry message to content script
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {
-        type: 'EXTRACT_CONTENT'
-      });
-    });
+    triggerContentExtraction();
   };
 
   const handleManualTextChange = (e) => {
