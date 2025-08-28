@@ -1,8 +1,10 @@
 // CleanClip External JavaScript - CSP Compliant Version
 console.log('🚀 CleanClip External Script Loading...');
 
-// 全域變數來追蹤擷取狀態
+// 全域變數來追蹤擷取狀態和當前 tab
 let isExtracting = false;
+let lastTabId = null;
+let lastTabUrl = null;
 
 // 等待 DOM 載入完成
 document.addEventListener('DOMContentLoaded', function() {
@@ -87,8 +89,36 @@ function clearAll() {
     console.log('🔄 State reset completed, ready for new extraction');
 }
 
+// 檢查並重置狀態函數
+function checkAndResetState() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs && tabs[0]) {
+            const currentTab = tabs[0];
+            if (lastTabId !== currentTab.id || lastTabUrl !== currentTab.url) {
+                console.log('🔄 Page changed, resetting extraction state');
+                isExtracting = false;
+                lastTabId = currentTab.id;
+                lastTabUrl = currentTab.url;
+            }
+        }
+    });
+}
+
 function extractContent() {
     console.log('📄 Extract content function called');
+    
+    // 先檢查並重置狀態
+    checkAndResetState();
+    
+    // 短暫延遲確保狀態檢查完成
+    setTimeout(() => {
+        performExtraction();
+    }, 100);
+}
+
+function performExtraction() {
+    const outputDiv = document.getElementById('output');
+    const textarea = document.getElementById('textarea');
     
     // 檢查是否正在擷取中
     if (isExtracting) {
@@ -98,9 +128,6 @@ function extractContent() {
     
     // 設置擷取狀態
     isExtracting = true;
-    
-    const outputDiv = document.getElementById('output');
-    const textarea = document.getElementById('textarea');
     
     if (outputDiv) {
         outputDiv.innerHTML = '⏳ 正在擷取內容...';
@@ -391,8 +418,19 @@ function extractContent() {
                             const clonedElement = element.cloneNode(true);
                             const unwantedSelectors = [
                                 'nav', 'header', 'footer', 'aside', '.sidebar',
-                                '.advertisement', '.ad', '.social-share',
-                                '.related-articles', '.comments', '.comment-section'
+                                '.advertisement', '.ad', '.social-share', '.ads',
+                                '.related-articles', '.comments', '.comment-section',
+                                // Google 廣告相關
+                                '.google-auto-placed', '.adsbygoogle', '[data-ad-client]',
+                                '.ad-container', '.ad-wrapper', '.ad-banner', '.ad-content',
+                                // 圖片資訊相關
+                                '.image-caption', '.photo-credit', '.image-source',
+                                '.getty', '.reuters', '.ap-photo', '.photo-info',
+                                // 社群分享
+                                '.share-buttons', '.social-buttons', '.sharing-tools',
+                                // 其他雜訊
+                                '.newsletter-signup', '.subscription-box', '.promo-box',
+                                'iframe', 'script', 'style', 'noscript'
                             ];
                             
                             unwantedSelectors.forEach(unwanted => {
@@ -400,9 +438,37 @@ function extractContent() {
                                 unwantedElements.forEach(el => el.remove());
                             });
                             
-                            const text = clonedElement.innerText || clonedElement.textContent || '';
-                            // 保留段落結構，只清理過多的空行
-                            const cleanText = text.trim().replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ');
+                            // 使用 innerText 來保持原始排版
+                            const text = clonedElement.innerText || '';
+                            if (!text) {
+                                // 備案：使用 textContent 但需要更多處理
+                                const rawText = clonedElement.textContent || '';
+                                const cleanText = rawText.trim()
+                                    .replace(/\n{3,}/g, '\n\n')  // 最多保留2個換行
+                                    .replace(/[ \t]{2,}/g, ' ')  // 多個空格變一個
+                                    .replace(/\n[ \t]+/g, '\n'); // 行首空格移除
+                                
+                                console.log(`Using textContent fallback: ${cleanText.length} characters`);
+                                
+                                if (cleanText.length > 100) {
+                                    allTexts.push({
+                                        text: cleanText,
+                                        length: cleanText.length,
+                                        selector: selector + ' (textContent)'
+                                    });
+                                    
+                                    if (cleanText.length > bestContent.length) {
+                                        bestContent = cleanText;
+                                        usedSelector = selector + ' (textContent)';
+                                    }
+                                }
+                                continue;
+                            }
+                            
+                            // 保留原始段落結構，最小化處理
+                            const cleanText = text.trim()
+                                .replace(/\n{4,}/g, '\n\n\n')   // 最多保留3個換行
+                                .replace(/[ \t]{3,}/g, '  ');   // 最多保留2個空格
                             
                             console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
                             
@@ -430,9 +496,18 @@ function extractContent() {
                         const bodyClone = document.body.cloneNode(true);
                         const unwantedSelectors = [
                             'nav', 'header', 'footer', 'aside', '.sidebar', '.menu',
-                            '.advertisement', '.ad', '.social-share', '.navbar',
+                            '.advertisement', '.ad', '.social-share', '.navbar', '.ads',
                             '.related-articles', '.comments', '.comment-section',
-                            'script', 'style', 'noscript'
+                            // Google 廣告相關
+                            '.google-auto-placed', '.adsbygoogle', '[data-ad-client]',
+                            '.ad-container', '.ad-wrapper', '.ad-banner', '.ad-content',
+                            // 圖片資訊相關
+                            '.image-caption', '.photo-credit', '.image-source',
+                            '.getty', '.reuters', '.ap-photo', '.photo-info',
+                            // 社群分享和其他雜訊
+                            '.share-buttons', '.social-buttons', '.sharing-tools',
+                            '.newsletter-signup', '.subscription-box', '.promo-box',
+                            'script', 'style', 'noscript', 'iframe'
                         ];
                         
                         unwantedSelectors.forEach(unwanted => {
@@ -441,7 +516,9 @@ function extractContent() {
                         });
                         
                         const bodyText = bodyClone.innerText || bodyClone.textContent || '';
-                        const cleanBodyText = bodyText.trim().replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ');
+                        const cleanBodyText = bodyText.trim()
+                            .replace(/\n{4,}/g, '\n\n\n')   // 最多保留3個換行
+                            .replace(/[ \t]{3,}/g, '  ');   // 最多保留2個空格
                         
                         if (cleanBodyText.length > bestContent.length) {
                             bestContent = cleanBodyText;
