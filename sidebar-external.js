@@ -417,25 +417,85 @@ function performExtraction() {
                             // 移除不必要的元素
                             const clonedElement = element.cloneNode(true);
                             const unwantedSelectors = [
-                                'nav', 'header', 'footer', 'aside', '.sidebar',
-                                '.advertisement', '.ad', '.social-share', '.ads',
-                                '.related-articles', '.comments', '.comment-section',
-                                // Google 廣告相關
+                                // 導航和結構元素
+                                'nav', 'header', 'footer', 'aside', '.sidebar', '.menu',
+                                // 廣告相關
+                                '.advertisement', '.ad', '.ads', '.ad-container', '.ad-wrapper', 
+                                '.ad-banner', '.ad-content', '.ad-block', '.ad-space',
                                 '.google-auto-placed', '.adsbygoogle', '[data-ad-client]',
-                                '.ad-container', '.ad-wrapper', '.ad-banner', '.ad-content',
-                                // 圖片資訊相關
-                                '.image-caption', '.photo-credit', '.image-source',
-                                '.getty', '.reuters', '.ap-photo', '.photo-info',
+                                '[data-ad-slot]', '.adsystem', '.ad-unit',
+                                // 訂閱和電子報
+                                '.newsletter', '.newsletter-signup', '.newsletter-form',
+                                '.subscription', '.subscription-box', '.subscribe-box',
+                                '.email-signup', '.signup-form', '.join-newsletter',
                                 // 社群分享
-                                '.share-buttons', '.social-buttons', '.sharing-tools',
+                                '.social-share', '.share-buttons', '.social-buttons', 
+                                '.sharing-tools', '.share-widget', '.social-media',
+                                // 圖片和媒體資訊
+                                '.image-caption', '.photo-credit', '.image-source', '.caption',
+                                '.getty', '.reuters', '.ap-photo', '.photo-info', '.image-info',
+                                'figcaption', '.media-caption', '.pic-info',
+                                // 相關文章和推薦
+                                '.related-articles', '.recommended', '.more-stories',
+                                '.related-content', '.suggestion-box',
+                                // 留言和互動
+                                '.comments', '.comment-section', '.disqus', '.fb-comments',
+                                // 促銷和宣傳
+                                '.promo-box', '.promotion', '.banner', '.call-to-action',
+                                '.cta-box', '.marketing-box',
+                                // 標籤和分類
+                                '.tags', '.categories', '.tag-list', '.breadcrumb',
                                 // 其他雜訊
-                                '.newsletter-signup', '.subscription-box', '.promo-box',
-                                'iframe', 'script', 'style', 'noscript'
+                                'iframe', 'script', 'style', 'noscript', '.hidden',
+                                // 版權和法律
+                                '.copyright', '.disclaimer', '.legal-notice'
                             ];
                             
+                            // 移除不需要的元素
                             unwantedSelectors.forEach(unwanted => {
                                 const unwantedElements = clonedElement.querySelectorAll(unwanted);
                                 unwantedElements.forEach(el => el.remove());
+                            });
+                            
+                            // 根據內容特徵移除可疑元素
+                            const allElements = clonedElement.querySelectorAll('*');
+                            allElements.forEach(el => {
+                                const text = el.textContent || '';
+                                const textLower = text.toLowerCase();
+                                
+                                // 移除包含訂閱相關關鍵字的元素
+                                if (textLower.includes('訂閱') || textLower.includes('電子報') ||
+                                    textLower.includes('subscribe') || textLower.includes('newsletter') ||
+                                    textLower.includes('join') || textLower.includes('signup') ||
+                                    textLower.includes('加入會員') || textLower.includes('免費訂閱') ||
+                                    textLower.includes('立即訂閱') || textLower.includes('email')) {
+                                    el.remove();
+                                    return;
+                                }
+                                
+                                // 移除廣告相關文字
+                                if (textLower.includes('廣告') || textLower.includes('advertisement') ||
+                                    textLower.includes('sponsored') || textLower.includes('贊助') ||
+                                    textLower.includes('ad ') || textLower.includes('推廣')) {
+                                    el.remove();
+                                    return;
+                                }
+                                
+                                // 移除社群分享相關
+                                if (textLower.includes('分享') || textLower.includes('share') ||
+                                    textLower.includes('facebook') || textLower.includes('twitter') ||
+                                    textLower.includes('line') || textLower.includes('按讚')) {
+                                    el.remove();
+                                    return;
+                                }
+                                
+                                // 移除圖片來源相關
+                                if (textLower.includes('圖片來源') || textLower.includes('photo credit') ||
+                                    textLower.includes('getty') || textLower.includes('shutterstock') ||
+                                    textLower.includes('路透') || textLower.includes('美聯社')) {
+                                    el.remove();
+                                    return;
+                                }
                             });
                             
                             // 使用 innerText 來保持原始排版
@@ -444,9 +504,22 @@ function performExtraction() {
                                 // 備案：使用 textContent 但需要更多處理
                                 const rawText = clonedElement.textContent || '';
                                 const cleanText = rawText.trim()
-                                    .replace(/\n{3,}/g, '\n\n')  // 最多保留2個換行
-                                    .replace(/[ \t]{2,}/g, ' ')  // 多個空格變一個
-                                    .replace(/\n[ \t]+/g, '\n'); // 行首空格移除
+                                    .split('\n')
+                                    .map(line => line.trim())
+                                    .filter(line => {
+                                        if (line.length < 3) return false;
+                                        const lineLower = line.toLowerCase();
+                                        const unwantedKeywords = [
+                                            '訂閱', '電子報', 'subscribe', 'newsletter',
+                                            '廣告', 'advertisement', 'sponsored', '贊助',
+                                            '分享', 'share', 'facebook', 'twitter',
+                                            '圖片來源', 'photo credit', 'getty'
+                                        ];
+                                        return !unwantedKeywords.some(keyword => lineLower.includes(keyword));
+                                    })
+                                    .join('\n')
+                                    .replace(/\n{3,}/g, '\n\n')
+                                    .replace(/[ \t]{2,}/g, ' ');
                                 
                                 console.log(`Using textContent fallback: ${cleanText.length} characters`);
                                 
@@ -465,10 +538,30 @@ function performExtraction() {
                                 continue;
                             }
                             
-                            // 保留原始段落結構，最小化處理
+                            // 更徹底的文字清理
                             const cleanText = text.trim()
-                                .replace(/\n{4,}/g, '\n\n\n')   // 最多保留3個換行
-                                .replace(/[ \t]{3,}/g, '  ');   // 最多保留2個空格
+                                .split('\n')  // 分割成行
+                                .map(line => line.trim())  // 清理每行的前後空白
+                                .filter(line => {
+                                    // 過濾掉空行和只有少量字符的行
+                                    if (line.length < 3) return false;
+                                    
+                                    // 過濾包含特定關鍵字的行
+                                    const lineLower = line.toLowerCase();
+                                    const unwantedKeywords = [
+                                        '訂閱', '電子報', 'subscribe', 'newsletter',
+                                        '廣告', 'advertisement', 'sponsored', '贊助',
+                                        '分享', 'share', 'facebook', 'twitter', 'line',
+                                        '圖片來源', 'photo credit', 'getty', 'shutterstock',
+                                        '加入會員', '免費訂閱', '立即訂閱', '按讚',
+                                        '推薦閱讀', '延伸閱讀', '相關文章'
+                                    ];
+                                    
+                                    return !unwantedKeywords.some(keyword => lineLower.includes(keyword));
+                                })
+                                .join('\n')  // 重新組合
+                                .replace(/\n{3,}/g, '\n\n')   // 最多保留2個連續換行
+                                .replace(/[ \t]{2,}/g, ' ');   // 多個空格變一個
                             
                             console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
                             
@@ -495,18 +588,27 @@ function performExtraction() {
                         console.log('🔄 Fallback: using cleaned body content');
                         const bodyClone = document.body.cloneNode(true);
                         const unwantedSelectors = [
-                            'nav', 'header', 'footer', 'aside', '.sidebar', '.menu',
-                            '.advertisement', '.ad', '.social-share', '.navbar', '.ads',
-                            '.related-articles', '.comments', '.comment-section',
-                            // Google 廣告相關
-                            '.google-auto-placed', '.adsbygoogle', '[data-ad-client]',
-                            '.ad-container', '.ad-wrapper', '.ad-banner', '.ad-content',
-                            // 圖片資訊相關
-                            '.image-caption', '.photo-credit', '.image-source',
+                            // 導航和結構元素
+                            'nav', 'header', 'footer', 'aside', '.sidebar', '.menu', '.navbar',
+                            // 廣告相關
+                            '.advertisement', '.ad', '.ads', '.ad-container', '.ad-wrapper', 
+                            '.ad-banner', '.ad-content', '.google-auto-placed', '.adsbygoogle',
+                            '[data-ad-client]', '[data-ad-slot]', '.adsystem',
+                            // 訂閱和電子報
+                            '.newsletter', '.newsletter-signup', '.subscription-box',
+                            '.email-signup', '.subscribe-box', '.join-newsletter',
+                            // 社群分享和互動
+                            '.social-share', '.share-buttons', '.social-buttons', '.sharing-tools',
+                            '.comments', '.comment-section', '.disqus', '.fb-comments',
+                            // 圖片和媒體資訊
+                            '.image-caption', '.photo-credit', '.image-source', 'figcaption',
                             '.getty', '.reuters', '.ap-photo', '.photo-info',
-                            // 社群分享和其他雜訊
-                            '.share-buttons', '.social-buttons', '.sharing-tools',
-                            '.newsletter-signup', '.subscription-box', '.promo-box',
+                            // 相關內容和推薦
+                            '.related-articles', '.recommended', '.more-stories',
+                            '.related-content', '.suggestion-box',
+                            // 促銷和其他雜訊
+                            '.promo-box', '.promotion', '.banner', '.call-to-action',
+                            '.tags', '.categories', '.breadcrumb', '.copyright',
                             'script', 'style', 'noscript', 'iframe'
                         ];
                         
@@ -517,8 +619,23 @@ function performExtraction() {
                         
                         const bodyText = bodyClone.innerText || bodyClone.textContent || '';
                         const cleanBodyText = bodyText.trim()
-                            .replace(/\n{4,}/g, '\n\n\n')   // 最多保留3個換行
-                            .replace(/[ \t]{3,}/g, '  ');   // 最多保留2個空格
+                            .split('\n')
+                            .map(line => line.trim())
+                            .filter(line => {
+                                if (line.length < 3) return false;
+                                const lineLower = line.toLowerCase();
+                                const unwantedKeywords = [
+                                    '訂閱', '電子報', 'subscribe', 'newsletter',
+                                    '廣告', 'advertisement', 'sponsored', '贊助',
+                                    '分享', 'share', 'facebook', 'twitter', 'line',
+                                    '圖片來源', 'photo credit', 'getty', 'shutterstock',
+                                    '加入會員', '免費訂閱', '立即訂閱', '按讚'
+                                ];
+                                return !unwantedKeywords.some(keyword => lineLower.includes(keyword));
+                            })
+                            .join('\n')
+                            .replace(/\n{3,}/g, '\n\n')
+                            .replace(/[ \t]{2,}/g, ' ');
                         
                         if (cleanBodyText.length > bestContent.length) {
                             bestContent = cleanBodyText;
