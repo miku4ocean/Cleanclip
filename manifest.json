@@ -41,7 +41,7 @@
   },
 
   "side_panel": {
-    "default_path": "sidebar-simple.html"
+    "default_path": "sidebar-isolated.html"
   },
   
   

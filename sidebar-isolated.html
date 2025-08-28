@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CleanClip Isolated</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        .container { 
+            width: 100%; height: 100vh; background: #f0f4f8; 
+            display: flex; flex-direction: column;
+        }
+        .header { 
+            background: #4299e1; color: white; padding: 15px; 
+            font-size: 18px; font-weight: bold;
+        }
+        .quick-test { 
+            padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; 
+            margin: 10px; border-radius: 5px;
+        }
+        .test-btn { 
+            padding: 10px 20px; background: #28a745; color: white; 
+            border: none; border-radius: 5px; cursor: pointer; 
+            font-size: 14px; margin: 5px;
+        }
+        .result { 
+            padding: 10px; margin: 10px; background: white; border-radius: 5px; 
+            border-left: 4px solid #17a2b8; min-height: 200px;
+        }
+        textarea { 
+            width: calc(100% - 20px); height: 200px; margin: 10px; 
+            padding: 10px; border: 1px solid #ddd; border-radius: 5px;
+        }
+        .actions { padding: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">🧪 CleanClip 隔離測試版</div>
+        
+        <div class="quick-test">
+            <strong>⚡ 快速測試：</strong> 點擊下方按鈕測試基本功能
+            <br><br>
+            <button class="test-btn" onclick="quickTest()">🧪 測試 JavaScript</button>
+            <button class="test-btn" onclick="testChrome()">🔧 測試 Chrome API</button>
+            <button class="test-btn" onclick="extractNow()">📄 立即擷取</button>
+        </div>
+        
+        <div class="result">
+            <div id="status">等待測試...</div>
+            <textarea id="content" placeholder="擷取結果或測試輸出將顯示在這裡..."></textarea>
+        </div>
+        
+        <div class="actions">
+            <button class="test-btn" onclick="saveContent()" style="background: #dc3545;">💾 儲存內容</button>
+            <button class="test-btn" onclick="clearAll()" style="background: #6c757d;">🗑️ 清空</button>
+        </div>
+    </div>
+
+    <script>
+        // 立即執行，避免任何延遲
+        (function() {
+            console.log('🚀 CleanClip Isolated Loading...');
+            
+            // 獲取元素
+            const statusEl = document.getElementById('status');
+            const contentEl = document.getElementById('content');
+            
+            function log(msg) {
+                console.log(msg);
+                if (statusEl) {
+                    statusEl.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + msg + '</div>';
+                }
+            }
+            
+            // 測試 JavaScript 基本功能
+            window.quickTest = function() {
+                log('✅ JavaScript 工作正常！');
+                if (contentEl) {
+                    contentEl.value = '🎉 測試成功！\n\n' +
+                        '時間：' + new Date().toLocaleString() + '\n' +
+                        '用戶代理：' + navigator.userAgent + '\n' +
+                        '頁面標題：' + document.title + '\n\n' +
+                        '如果你看到這個訊息，表示 JavaScript 功能完全正常！';
+                }
+            };
+            
+            // 測試 Chrome API
+            window.testChrome = function() {
+                log('🔍 檢查 Chrome API...');
+                
+                if (typeof chrome === 'undefined') {
+                    log('❌ Chrome API 不可用');
+                    return;
+                }
+                
+                log('✅ Chrome API 可用');
+                
+                try {
+                    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                        if (chrome.runtime.lastError) {
+                            log('❌ API 錯誤: ' + chrome.runtime.lastError.message);
+                            return;
+                        }
+                        
+                        if (tabs && tabs[0]) {
+                            log('✅ 找到活動分頁: ' + tabs[0].url);
+                            if (contentEl) {
+                                contentEl.value = '🔧 Chrome API 測試結果：\n\n' +
+                                    '✅ chrome.tabs.query 工作正常\n' +
+                                    '✅ 找到活動分頁\n' +
+                                    '📄 分頁標題: ' + tabs[0].title + '\n' +
+                                    '🔗 分頁網址: ' + tabs[0].url + '\n' +
+                                    '🆔 分頁 ID: ' + tabs[0].id + '\n\n' +
+                                    '所有 API 功能正常，可以進行內容擷取！';
+                            }
+                        } else {
+                            log('❌ 找不到活動分頁');
+                        }
+                    });
+                } catch (error) {
+                    log('❌ API 測試失敗: ' + error.message);
+                }
+            };
+            
+            // 立即擷取內容
+            window.extractNow = function() {
+                log('📄 開始內容擷取...');
+                
+                if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.scripting) {
+                    log('❌ Chrome 擴充功能 API 不可用');
+                    return;
+                }
+                
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (chrome.runtime.lastError || !tabs || !tabs[0]) {
+                        log('❌ 無法獲取活動分頁');
+                        return;
+                    }
+                    
+                    const tab = tabs[0];
+                    log('📄 對象分頁: ' + tab.url);
+                    
+                    chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        function: function() {
+                            // 在頁面中執行的函數
+                            const title = document.title;
+                            const url = window.location.href;
+                            
+                            // 嘗試各種內容選擇器
+                            const selectors = [
+                                'article',
+                                'main', 
+                                '[role="main"]',
+                                '.article-body',
+                                '.story-body',
+                                '.content',
+                                '.post-content',
+                                '.entry-content'
+                            ];
+                            
+                            let bestContent = '';
+                            let usedSelector = '';
+                            
+                            for (let selector of selectors) {
+                                const elements = document.querySelectorAll(selector);
+                                for (let elem of elements) {
+                                    const text = elem.innerText || elem.textContent || '';
+                                    if (text.trim().length > 200) {
+                                        bestContent = text.trim();
+                                        usedSelector = selector;
+                                        break;
+                                    }
+                                }
+                                if (bestContent) break;
+                            }
+                            
+                            // 如果沒找到，使用 body
+                            if (!bestContent) {
+                                const bodyText = document.body.innerText || document.body.textContent || '';
+                                if (bodyText.trim().length > 100) {
+                                    bestContent = bodyText.trim();
+                                    usedSelector = 'body (fallback)';
+                                }
+                            }
+                            
+                            return {
+                                title: title,
+                                url: url,
+                                content: bestContent.substring(0, 4000), // 限制長度
+                                fullLength: bestContent.length,
+                                selector: usedSelector,
+                                timestamp: new Date().toLocaleString()
+                            };
+                        }
+                    }, function(results) {
+                        if (chrome.runtime.lastError) {
+                            log('❌ 腳本執行錯誤: ' + chrome.runtime.lastError.message);
+                            return;
+                        }
+                        
+                        if (results && results[0] && results[0].result) {
+                            const data = results[0].result;
+                            log('✅ 內容擷取成功: ' + data.fullLength + ' 字符');
+                            
+                            if (contentEl) {
+                                contentEl.value = '📄 內容擷取結果\n' +
+                                    '═══════════════════════════\n' +
+                                    '🏷️ 標題: ' + data.title + '\n' +
+                                    '🔗 網址: ' + data.url + '\n' +
+                                    '📏 長度: ' + data.fullLength + ' 字符\n' +
+                                    '🎯 選擇器: ' + data.selector + '\n' +
+                                    '⏰ 時間: ' + data.timestamp + '\n' +
+                                    '═══════════════════════════\n\n' +
+                                    data.content + '\n\n' +
+                                    '--- 內容擷取完成 ---';
+                            }
+                        } else {
+                            log('❌ 無法獲取擷取結果');
+                        }
+                    });
+                });
+            };
+            
+            // 儲存內容
+            window.saveContent = function() {
+                if (!contentEl || !contentEl.value.trim()) {
+                    alert('沒有內容可以儲存！');
+                    return;
+                }
+                
+                try {
+                    const text = contentEl.value;
+                    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'cleanclip-' + Date.now() + '.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    log('✅ 檔案已下載');
+                } catch (error) {
+                    log('❌ 儲存失敗: ' + error.message);
+                }
+            };
+            
+            // 清空內容
+            window.clearAll = function() {
+                if (contentEl) contentEl.value = '';
+                if (statusEl) statusEl.innerHTML = '已清空，準備重新測試...';
+                log('🗑️ 內容已清空');
+            };
+            
+            // 初始化完成
+            log('🚀 隔離版本初始化完成');
+            log('💡 請點擊上方按鈕開始測試');
+            
+        })(); // 立即執行函數結束
+    </script>
+</body>
+</html>
