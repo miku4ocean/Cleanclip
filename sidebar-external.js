@@ -373,9 +373,143 @@ function performExtraction() {
                     return { content: '', selector: 'none', debug: [] };
                 }
                 
+                // 數位時代專門擷取策略
+                function extractBusinessNextContent() {
+                    console.log('🔍 BusinessNext (數位時代) content extraction started');
+                    
+                    let content = '';
+                    let metadata = '';
+                    let usedSelector = '';
+                    
+                    // 擷取文章metadata
+                    try {
+                        // 日期
+                        const dateEl = document.querySelector('.article-info time, .date, .publish-date');
+                        const articleDate = dateEl ? dateEl.textContent.trim() : '';
+                        
+                        // 分類
+                        const categoryEl = document.querySelector('.category, .article-category, .breadcrumb a:last-child');
+                        const category = categoryEl ? categoryEl.textContent.trim() : '';
+                        
+                        // 標題
+                        const titleEl = document.querySelector('h1, .article-title');
+                        const articleTitle = titleEl ? titleEl.textContent.trim() : '';
+                        
+                        // 作者
+                        const authorEl = document.querySelector('.author, .byline, .article-author');
+                        const author = authorEl ? authorEl.textContent.trim() : '';
+                        
+                        // 標籤
+                        const tagElements = document.querySelectorAll('.tags a, .article-tags a, [class*="tag"]');
+                        const tags = Array.from(tagElements).map(tag => tag.textContent.trim()).filter(t => t.length > 0);
+                        
+                        // 組合metadata
+                        if (articleDate) metadata += articleDate + '\n';
+                        if (category) metadata += '| ' + category + '\n';
+                        if (articleTitle) metadata += articleTitle + '\n';
+                        if (author) metadata += author + '\n';
+                        if (tags.length > 0) metadata += tags.map(t => '#' + t).join(' ') + '\n\n';
+                        
+                    } catch (e) {
+                        console.log('Metadata extraction failed:', e);
+                    }
+                    
+                    // 擷取文章主體內容
+                    const contentSelectors = [
+                        '.article-content', 
+                        '.content-body',
+                        'article .content'
+                    ];
+                    
+                    for (let selector of contentSelectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            const clonedElement = element.cloneNode(true);
+                            
+                            // 移除數位時代特有的廣告和訂閱元素
+                            const unwantedSelectors = [
+                                // 訂閱相關
+                                '.newsletter-signup', '.subscribe-box', '.email-form',
+                                '.subscription', '[class*="subscribe"]', '[class*="newsletter"]',
+                                // 廣告相關  
+                                '.ad', '.ads', '.advertisement', '[class*="ad-"]', 
+                                '.sponsored', '.promo', '.banner',
+                                // 會議和活動廣告
+                                '[class*="event"]', '[class*="conference"]', '[class*="summit"]',
+                                // 社群分享
+                                '.share', '.social', '[class*="share"]',
+                                // 其他雜訊
+                                '.related', '.recommendation', '.sidebar', 
+                                'script', 'style', 'noscript'
+                            ];
+                            
+                            unwantedSelectors.forEach(unwanted => {
+                                const elements = clonedElement.querySelectorAll(unwanted);
+                                elements.forEach(el => el.remove());
+                            });
+                            
+                            // 根據內容過濾廣告段落
+                            const paragraphs = clonedElement.querySelectorAll('p, div');
+                            paragraphs.forEach(p => {
+                                const text = p.textContent || '';
+                                const textLower = text.toLowerCase();
+                                
+                                // 移除明顯的廣告和訂閱段落
+                                if ((textLower.includes('訂閱') && textLower.includes('數位時代')) ||
+                                    (textLower.includes('掌握最新') && textLower.includes('ai')) ||
+                                    (textLower.includes('高峰會') || textLower.includes('解密')) ||
+                                    (textLower.includes('讓科技投入') && textLower.includes('roi')) ||
+                                    (textLower.includes('gmail.com') || textLower.includes('hotmail.com')) ||
+                                    (textLower.includes('謝謝訂閱') || textLower.includes('請稍等'))) {
+                                    p.remove();
+                                }
+                            });
+                            
+                            content = clonedElement.innerText || clonedElement.textContent || '';
+                            if (content.trim().length > 500) {
+                                usedSelector = selector + ' (BusinessNext)';
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 清理文字
+                    const cleanContent = content.trim()
+                        .split('\n')
+                        .map(line => line.trim())
+                        .filter(line => {
+                            if (line.length < 2) return false;
+                            const lineLower = line.toLowerCase();
+                            
+                            // 過濾廣告和訂閱行
+                            const adKeywords = [
+                                '訂閱數位時代', '掌握最新ai', '高峰會', '解密',
+                                'roi營收加速器', 'gmail.com', 'hotmail.com', '謝謝訂閱'
+                            ];
+                            
+                            return !adKeywords.some(keyword => lineLower.includes(keyword));
+                        })
+                        .join('\n')
+                        .replace(/\n{3,}/g, '\n\n');
+                    
+                    const finalContent = metadata + cleanContent;
+                    
+                    console.log(`BusinessNext extraction result: ${finalContent.length} characters using ${usedSelector}`);
+                    return {
+                        content: finalContent,
+                        selector: usedSelector,
+                        debug: []
+                    };
+                }
+                
                 // 一般網站擷取策略
                 function extractGeneralContent() {
                     console.log('🔍 General content extraction started');
+                    
+                    // 數位時代特殊處理
+                    if (url.includes('bnext.com.tw')) {
+                        return extractBusinessNextContent();
+                    }
                     
                     const selectors = [
                         // 新聞網站主要內容選擇器
