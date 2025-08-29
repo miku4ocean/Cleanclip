@@ -696,7 +696,19 @@ function performExtraction() {
                         /立即購買|立即訂閱/,
                         /點擊查看|點擊了解/,
                         // 常見廣告call to action
-                        /免費試用|立即下載|馬上體驗/
+                        /免費試用|立即下載|馬上體驗/,
+                        // 聯合報特有的不必要內容
+                        /^\d{4}-\d{2}-\d{2}/,  // 日期格式 2025-08-29
+                        /^\d{2}:\d{2}$/,       // 時間格式 08:35
+                        /記者.*報導$/,         // 記者署名
+                        /即時新聞/,
+                        /相關新聞|延伸閱讀|推薦閱讀/,
+                        // URL或連結相關
+                        /https?:\/\//,
+                        /www\./,
+                        // 其他metadata
+                        /分享到|複製連結|列印/,
+                        /訂閱|會員/
                     ];
                     
                     return adPatterns.some(pattern => pattern.test(textTrimmed));
@@ -787,13 +799,44 @@ function performExtraction() {
                 }
                 
                 // 通用文字清理函數（保守策略）
-                function universalTextCleaning(text) {
+                function universalTextCleaning(text, pageUrl = window.location.href) {
                     return text.trim()
                         .split('\n')
                         .map(line => line.trim())
                         .filter(line => {
                             // 只過濾太短的行（1個字符以下）
                             if (line.length < 2) return false;
+                            
+                            // 聯合報特殊過濾 - 移除不必要的metadata
+                            if (pageUrl.includes('udn.com')) {
+                                const udnFilterPatterns = [
+                                    /^\d{4}\/\d{1,2}\/\d{1,2}/,   // 日期 2025/8/29
+                                    /^\d{1,2}:\d{2}/,             // 時間 08:35
+                                    /^記者.{1,10}報導$/,          // 記者署名
+                                    /^記者.{1,10}\/.*報導$/,      // 記者+地點
+                                    /^台北\d{1,2}日電$/,         // 電訊稿格式
+                                    /^即時新聞$/,
+                                    /^分享$/,
+                                    /^複製連結$/,
+                                    /^列印$/,
+                                    /^訂閱$/,
+                                    /^會員$/,
+                                    /^相關新聞$/,
+                                    /^延伸閱讀$/,
+                                    /^https?:\/\//,              // URL
+                                    /^www\./,                    // 網址
+                                    /^\d+分鐘前$/,               // 時間戳
+                                    /^更新：/,                   // 更新時間
+                                    /^發布：/,                   // 發布時間
+                                    /^\(中央社/,                // 中央社來源
+                                    /^\(路透/,                  // 路透社來源
+                                ];
+                                
+                                if (udnFilterPatterns.some(pattern => pattern.test(line.trim()))) {
+                                    console.log(`Removing UDN metadata line: "${line}"`);
+                                    return false;
+                                }
+                            }
                             
                             // 只在高確信度時才移除內容
                             // 廣告行檢測（只移除明確的廣告標示）
@@ -884,7 +927,7 @@ function performExtraction() {
                     }
                     
                     // 使用通用文字清理
-                    const cleanContent = universalTextCleaning(content);
+                    const cleanContent = universalTextCleaning(content, url);
                     
                     const finalContent = metadata + cleanContent;
                     
@@ -1071,6 +1114,29 @@ function performExtraction() {
                     }
                     
                     console.log(`Taiwan news extraction result: ${bestContent.length} characters using ${usedSelector}`);
+                    
+                    // 中央社特殊處理：以「延伸閱讀」為分界點
+                    if (url.includes('cna.com.tw') && bestContent) {
+                        const cutoffMarkers = ['延伸閱讀', '相關新聞', '相關文章', '推薦閱讀'];
+                        let cutoffFound = false;
+                        
+                        for (const marker of cutoffMarkers) {
+                            const cutoffIndex = bestContent.indexOf(marker);
+                            if (cutoffIndex !== -1) {
+                                console.log(`🎯 CNA: Found cutoff marker "${marker}" at position ${cutoffIndex}`);
+                                bestContent = bestContent.substring(0, cutoffIndex).trim();
+                                cutoffFound = true;
+                                break;
+                            }
+                        }
+                        
+                        if (cutoffFound) {
+                            console.log(`✂️ CNA: Content trimmed to ${bestContent.length} characters after cutoff`);
+                        } else {
+                            console.log('⚠️ CNA: No cutoff markers found, using full content');
+                        }
+                    }
+                    
                     return {
                         content: bestContent,
                         selector: usedSelector,
@@ -1127,7 +1193,7 @@ function performExtraction() {
                             // 使用通用清理系統
                             const cleanedElement = universalContentCleaning(element);
                             const text = cleanedElement.innerText || cleanedElement.textContent || '';
-                            const cleanText = universalTextCleaning(text);
+                            const cleanText = universalTextCleaning(text, url);
                             
                             console.log(`Trying selector: ${selector}, found ${cleanText.length} characters`);
                             
@@ -1155,7 +1221,7 @@ function performExtraction() {
                         // 使用通用清理系統處理整個 body
                         const cleanedBody = universalContentCleaning(document.body);
                         const bodyText = cleanedBody.innerText || cleanedBody.textContent || '';
-                        const cleanBodyText = universalTextCleaning(bodyText);
+                        const cleanBodyText = universalTextCleaning(bodyText, url);
                         
                         if (cleanBodyText.length > bestContent.length) {
                             bestContent = cleanBodyText;
