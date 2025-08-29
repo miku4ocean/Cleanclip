@@ -389,6 +389,8 @@ function performExtraction() {
                     
                     // 1. CSS 選擇器過濾（加強版 - 針對台灣新聞網站）
                     const universalUnwantedSelectors = [
+                        // 腳本和樣式（絕對移除 - 防止廣告代碼洩漏）
+                        'script', 'style', 'noscript', 'iframe',
                         // 導航和結構（安全移除）
                         'nav', 'header', 'footer', 'aside', '.sidebar', '.menu', '.navbar',
                         // 廣告相關（明確標識）- 加強版
@@ -430,15 +432,29 @@ function performExtraction() {
                         elements.forEach(el => el.remove());
                     });
                     
+                    // 1.5. 額外的JavaScript和廣告代碼清理（針對聯合報）
+                    const scriptElements = clonedElement.querySelectorAll('script, [id*="google"], [class*="google"]');
+                    scriptElements.forEach(el => {
+                        console.log(`Removing script/google element: ${el.tagName} - ${(el.textContent || '').substring(0, 50)}...`);
+                        el.remove();
+                    });
+                    
                     // 2. 智能內容檢測（通用廣告和圖片說明識別）
                     const allElements = clonedElement.querySelectorAll('*');
                     allElements.forEach(el => {
                         const text = el.textContent || '';
                         const textLower = text.toLowerCase().trim();
                         
-                        // Google廣告代碼檢測 - 針對聯合報問題
+                        // Google廣告代碼檢測 - 針對聯合報問題（加強版）
                         if (isGoogleAdCode(text, el)) {
                             console.log(`Removing Google ad code: "${text.substring(0, 50)}..."`);
+                            el.remove();
+                            return;
+                        }
+                        
+                        // 檢測包含廣告代碼的文本節點
+                        if (text && text.length > 20 && containsAdCode(text)) {
+                            console.log(`Removing ad code text node: "${text.substring(0, 50)}..."`);
                             el.remove();
                             return;
                         }
@@ -585,6 +601,37 @@ function performExtraction() {
                            expertQuotePatterns.some(pattern => pattern.test(textTrimmed)) ||
                            conclusionPatterns.some(pattern => pattern.test(textTrimmed)) ||
                            newsHighlightPatterns.some(pattern => pattern.test(textTrimmed));
+                }
+                
+                // 廣告代碼內容檢測函數（針對JavaScript代碼洩漏問題）
+                function containsAdCode(text) {
+                    if (!text || text.length < 20) return false;
+                    
+                    const adCodePatterns = [
+                        // Google廣告相關
+                        /googletag\.cmd\.push/i,
+                        /googletag\.display/i,
+                        /googletag\.defineSlot/i,
+                        /googletag\.sizeMapping/i,
+                        /addSize\s*\(/i,
+                        /defineSizeMapping/i,
+                        /addService\s*\(/i,
+                        // DFP和廣告系統
+                        /\/\d+\/[^\/]+\/[^'"\s]+/,  // DFP路徑模式 /4576170/free-1_News
+                        /'ads-[^']+'/i,             // 廣告ID模式
+                        /Next video in \d+/i,       // 視頻廣告
+                        /Cancel\s*Next video/i,
+                        // 廣告尺寸和配置
+                        /\[\s*\[\s*\d+\s*,\s*\d+\s*\]\s*\]/,  // 廣告尺寸陣列 [[300, 250]]
+                        /Mobile_\d+x\d+/i,          // 手機廣告尺寸
+                        /Desktop-[A-Z]/i,           // 桌面廣告
+                        // 通用JavaScript廣告模式
+                        /\.push\s*\(\s*function\s*\(\s*\)\s*\{/,
+                        /pubads\(\)/i,
+                        /\.build\(\)/i
+                    ];
+                    
+                    return adCodePatterns.some(pattern => pattern.test(text));
                 }
                 
                 // Google廣告代碼檢測函數（針對聯合報等網站）
@@ -807,6 +854,12 @@ function performExtraction() {
                             // 只過濾太短的行（1個字符以下）
                             if (line.length < 2) return false;
                             
+                            // 廣告代碼行檢測（適用所有網站）
+                            if (containsAdCode(line)) {
+                                console.log(`Filtering ad code line: "${line.substring(0, 50)}..."`);
+                                return false;
+                            }
+                            
                             // 聯合報特殊過濾 - 移除不必要的metadata
                             if (pageUrl.includes('udn.com')) {
                                 const udnFilterPatterns = [
@@ -960,21 +1013,23 @@ function performExtraction() {
                             '[data-testid="article-content"]'
                         ];
                     } else if (url.includes('udn.com')) {
-                        // 聯合報 - 加強廣告過濾版本
-                        console.log('🎯 UDN extraction - using enhanced ad filtering');
+                        // 聯合報 - 加強廣告過濾版本（更精確的內容定位）
+                        console.log('🎯 UDN extraction - using enhanced ad filtering and precise selectors');
                         selectors = [
-                            // 主要內容選擇器 - 排除廣告區域
-                            '.article-content:not([class*="ad"]):not([id*="ad"])',
-                            '.article-body:not([class*="ad"]):not([id*="ad"])', 
-                            '#story_body:not([class*="ad"]):not([id*="ad"])',
-                            '.story-body:not([class*="ad"]):not([id*="ad"])',
-                            '.article__content:not([class*="ad"]):not([id*="ad"])',
-                            // 段落級選擇器 - 避免廣告段落
-                            '.article-content p:not([class*="ad"]):not([id*="ad"])',
-                            '.story_art_content p:not([class*="ad"]):not([id*="ad"])',
-                            // 更保險的選擇器
-                            'article p:not([class*="ad"]):not([id*="ad"])',
-                            'main p:not([class*="ad"]):not([id*="ad"])'
+                            // 最精確的內容選擇器 - 避開script重的區域
+                            '#story_body_content',                    // UDN主要內容容器
+                            '.story-body .article-content:first-of-type',  // 第一個文章內容
+                            '.article-body:not([class*="ad"]):first-of-type', 
+                            '#story_body:not([class*="ad"])',
+                            '.story-body:not([class*="ad"])',
+                            '.article__content:not([class*="ad"])',
+                            // 段落級選擇器 - 更保險的方法
+                            '.story-body p:not([class*="ad"]):not([id*="ad"]):not([class*="google"])',
+                            '.article-content p:not([class*="ad"]):not([id*="ad"]):not([class*="google"])',
+                            '.story_art_content p:not([class*="ad"]):not([id*="ad"]):not([class*="google"])',
+                            // 後備選擇器 - 只取段落文本
+                            'article p:not([class*="ad"]):not([id*="ad"]):not([class*="script"])',
+                            'main p:not([class*="ad"]):not([id*="ad"]):not([class*="script"])'
                         ];
                     } else if (url.includes('pixnet.net')) {
                         // 痞客邦
