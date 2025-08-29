@@ -401,6 +401,12 @@ function performExtraction() {
                         // 更多廣告變形
                         '[class*="ad-"]', '[id*="ad-"]', '[class*="ads"]', '[id*="ads"]',
                         '.dfp-ad', '.banner-ad', '.text-ad', '.display-ad',
+                        // Google廣告特殊過濾 - 針對聯合報
+                        '.adsbygoogle', '[data-google-av-cxn]', '[data-google-av-cpmav]',
+                        '.google_ads', '.googleads', '.goog-te-banner-frame',
+                        '[id*="google"]', '[class*="google"]', 
+                        // DFP和其他廣告系統
+                        '[id*="dfp"]', '[class*="dfp"]', '[id*="gpt"]', '[class*="gpt"]',
                         // 訂閱相關（明確標識）
                         '.newsletter-signup', '.subscription-box', '.email-signup', 
                         '.signup-form', '.subscribe-form',
@@ -429,6 +435,13 @@ function performExtraction() {
                     allElements.forEach(el => {
                         const text = el.textContent || '';
                         const textLower = text.toLowerCase().trim();
+                        
+                        // Google廣告代碼檢測 - 針對聯合報問題
+                        if (isGoogleAdCode(text, el)) {
+                            console.log(`Removing Google ad code: "${text.substring(0, 50)}..."`);
+                            el.remove();
+                            return;
+                        }
                         
                         // 廣告內容檢測（增強版 - 考慮上下文）
                         if (isAdvertisementContent(text, el)) {
@@ -572,6 +585,60 @@ function performExtraction() {
                            expertQuotePatterns.some(pattern => pattern.test(textTrimmed)) ||
                            conclusionPatterns.some(pattern => pattern.test(textTrimmed)) ||
                            newsHighlightPatterns.some(pattern => pattern.test(textTrimmed));
+                }
+                
+                // Google廣告代碼檢測函數（針對聯合報等網站）
+                function isGoogleAdCode(text, element) {
+                    if (!text) return false;
+                    
+                    const textTrimmed = text.trim();
+                    
+                    // 檢查是否包含Google廣告相關代碼或標識
+                    const googleAdPatterns = [
+                        // Google廣告代碼模式
+                        /googletag\.cmd\.push/i,
+                        /adsbygoogle/i,
+                        /google_ad_client/i,
+                        /google_ad_slot/i,
+                        /googleads\.g\.doubleclick\.net/i,
+                        /pagead2\.googlesyndication\.com/i,
+                        // DFP相關
+                        /dfp\..*\.googletag/i,
+                        /gpt\.js/i,
+                        // 廣告相關JavaScript
+                        /googletag\.display/i,
+                        /refreshAds|loadAds|showAds/i,
+                        // 廣告容器檢測
+                        /div-gpt-ad/i,
+                        // 常見廣告JavaScript模式
+                        /\.push\s*\(\s*function\s*\(\s*\)\s*\{.*ad/i
+                    ];
+                    
+                    // 檢查元素屬性
+                    if (element) {
+                        const className = element.className || '';
+                        const elementId = element.id || '';
+                        const tagName = element.tagName || '';
+                        
+                        // script標籤且包含廣告代碼
+                        if (tagName.toLowerCase() === 'script' && 
+                            googleAdPatterns.some(pattern => pattern.test(textTrimmed))) {
+                            return true;
+                        }
+                        
+                        // 元素有廣告相關的class或id
+                        const adElementPatterns = [
+                            /adsbygoogle/i, /google.*ad/i, /dfp.*ad/i, /gpt.*ad/i
+                        ];
+                        
+                        if (adElementPatterns.some(pattern => 
+                            pattern.test(className) || pattern.test(elementId))) {
+                            return true;
+                        }
+                    }
+                    
+                    // 檢查文字內容是否為廣告代碼
+                    return googleAdPatterns.some(pattern => pattern.test(textTrimmed));
                 }
                 
                 // 廣告內容檢測函數（增強版 - 上下文感知）
@@ -832,6 +899,7 @@ function performExtraction() {
                 // 台灣新聞網站專門擷取策略
                 function extractTaiwanNewsContent() {
                     console.log('🔍 Taiwan News content extraction started');
+                    console.log('🌐 Current URL:', window.location.href);
                     
                     const url = window.location.href;
                     let selectors = [];
@@ -849,15 +917,21 @@ function performExtraction() {
                             '[data-testid="article-content"]'
                         ];
                     } else if (url.includes('udn.com')) {
-                        // 聯合報
+                        // 聯合報 - 加強廣告過濾版本
+                        console.log('🎯 UDN extraction - using enhanced ad filtering');
                         selectors = [
-                            '.article-content',
-                            '.article-body', 
-                            '#story_body',
-                            '.story-body',
-                            '.article__content',
-                            '.article-content-container p',
-                            '.story_art_content p'
+                            // 主要內容選擇器 - 排除廣告區域
+                            '.article-content:not([class*="ad"]):not([id*="ad"])',
+                            '.article-body:not([class*="ad"]):not([id*="ad"])', 
+                            '#story_body:not([class*="ad"]):not([id*="ad"])',
+                            '.story-body:not([class*="ad"]):not([id*="ad"])',
+                            '.article__content:not([class*="ad"]):not([id*="ad"])',
+                            // 段落級選擇器 - 避免廣告段落
+                            '.article-content p:not([class*="ad"]):not([id*="ad"])',
+                            '.story_art_content p:not([class*="ad"]):not([id*="ad"])',
+                            // 更保險的選擇器
+                            'article p:not([class*="ad"]):not([id*="ad"])',
+                            'main p:not([class*="ad"]):not([id*="ad"])'
                         ];
                     } else if (url.includes('pixnet.net')) {
                         // 痞客邦
@@ -882,19 +956,26 @@ function performExtraction() {
                         ];
                     } else if (url.includes('cna.com.tw')) {
                         // 中央社 - 2025年更新版選擇器（針對單篇文章）
-                        // 針對具體文章頁面，避免抓取滾動式多篇文章
+                        console.log('🎯 CNA extraction - checking if this is a specific news article');
+                        
                         if (url.includes('/news/')) {
-                            // 針對特定新聞文章頁面
+                            console.log('✅ CNA specific news article detected, using precise selectors');
+                            // 針對特定新聞文章頁面 - 使用非常精確的選擇器
                             selectors = [
-                                'article.article',     // 具體文章容器
-                                '.article-wrap',       // 文章包裝器
-                                '.centralContent .pageContent',  // 組合選擇器
-                                '.pageContent',        // 文章內容容器
-                                '.centralContent',     // 主要內容容器
-                                '.paragraph',          // 段落容器
-                                'main article'         // 主文章區域
+                                // 最精確的組合選擇器，避免抓到其他文章
+                                '.centralContent[data-article]:first-of-type',
+                                '.centralContent article:first-of-type',
+                                '.pageContent[data-article]:first-of-type', 
+                                '.centralContent .pageContent:first-of-type',
+                                // 如果有唯一ID的話
+                                '#article-content',
+                                '.article-main-content',
+                                // 後備選擇器 - 只取第一個
+                                '.centralContent:first-of-type',
+                                '.pageContent:first-of-type'
                             ];
                         } else {
+                            console.log('⚠️ CNA general page, using broader selectors');
                             // 一般頁面選擇器
                             selectors = [
                                 '.centralContent',     // 主要內容容器
